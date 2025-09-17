@@ -1,4 +1,6 @@
-const { SEOChecker } = require('./seo-checker');
+const {
+  SEOChecker
+} = require('./seo-checker');
 const path = require('path');
 const os = require('os');
 
@@ -30,10 +32,14 @@ async function testWithChromeProfile() {
     await checker.init(profileOptions);
 
     // Controlla il sito
-    await checker.navigateAndCheck('https://edysma.com', 3);
+    await checker.navigateAndCheck('https://edysma.com', 10);
 
-    // Genera il report
+    // Genera il report console
     checker.generateReport();
+
+    // Genera anche il report markdown
+    const reportPath = checker.generateMarkdownReport();
+    console.log(`\n📄 Report Markdown disponibile: ${reportPath}`);
 
   } catch (error) {
     console.error('❌ Errore:', error.message);
@@ -73,4 +79,7 @@ if (require.main === module) {
   // testWithCustomProfile('/path/to/your/chrome/profile');
 }
 
-module.exports = { testWithChromeProfile, testWithCustomProfile };
+module.exports = {
+  testWithChromeProfile,
+  testWithCustomProfile
+};

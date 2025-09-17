@@ -11,7 +11,7 @@ async function testSEO() {
     await checker.init();
 
     // Esempio 1: Controlla un singolo sito
-    await checker.navigateAndCheck('https://edysma.com', 3);
+    await checker.navigateAndCheck('https://edysma.com', 10);
 
     // Genera il report
     checker.generateReport();

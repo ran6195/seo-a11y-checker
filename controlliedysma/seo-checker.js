@@ -1,4 +1,6 @@
 const { chromium } = require('playwright');
+const fs = require('fs');
+const path = require('path');
 
 class SEOChecker {
   constructor() {
@@ -8,6 +10,7 @@ class SEOChecker {
     this.visitedPages = new Set();
     this.duplicateTitles = new Map();
     this.duplicateDescriptions = new Map();
+    this.startTime = new Date();
   }
 
   async init(options = {}) {
@@ -76,6 +79,49 @@ class SEOChecker {
     };
   }
 
+  detectPageType(url) {
+    const urlPath = new URL(url).pathname.toLowerCase();
+
+    // Pattern comuni per categorie
+    const categoryPatterns = [
+      /\/category\//,
+      /\/categories\//,
+      /\/cat\//,
+      /\/categoria\//,
+      /\/categorie\//,
+      /\/tag\//,
+      /\/tags\//,
+      /\/topic\//,
+      /\/topics\//,
+      /\/prodotti\//,
+      /\/products\//,
+      /\/servizi\//,
+      /\/services\//,
+      /\/blog\/category\//,
+      /\/news\/category\//
+    ];
+
+    const isCategory = categoryPatterns.some(pattern => pattern.test(urlPath));
+
+    // Pattern per articoli/post
+    const articlePatterns = [
+      /\/blog\//,
+      /\/news\//,
+      /\/post\//,
+      /\/article\//,
+      /\/articolo\//,
+      /\/\d{4}\/\d{2}\//, // Date pattern (2024/01/)
+    ];
+
+    const isArticle = articlePatterns.some(pattern => pattern.test(urlPath));
+
+    if (isCategory) return 'category';
+    if (isArticle) return 'article';
+    if (urlPath === '/' || urlPath === '') return 'homepage';
+
+    return 'page';
+  }
+
   async checkMetaTags(url) {
     console.log(`\n🏷️  Controllo meta tags per: ${url}`);
 
@@ -92,29 +138,71 @@ class SEOChecker {
       };
     });
 
+    const pageType = this.detectPageType(url);
+
     const issues = [];
 
-    // Controlla title
+    // Controlla title in base al tipo di pagina
     if (!metaData.title) {
-      issues.push('❌ Title mancante');
+      issues.push(`❌ Title mancante (pagina ${pageType})`);
     } else {
-      if (metaData.title.length < 30) {
-        issues.push(`❌ Title troppo corto: ${metaData.title.length} caratteri (min 30)`);
+      // Limiti specifici per tipo di pagina
+      let titleMin = 30, titleMax = 60;
+
+      if (pageType === 'category') {
+        titleMin = 25; // Categorie possono essere più corte
+        titleMax = 65;
+      } else if (pageType === 'article') {
+        titleMin = 35; // Articoli dovrebbero essere più descrittivi
+        titleMax = 60;
       }
-      if (metaData.title.length > 60) {
-        issues.push(`❌ Title troppo lungo: ${metaData.title.length} caratteri (max 60)`);
+
+      if (metaData.title.length < titleMin) {
+        issues.push(`❌ Title troppo corto per ${pageType}: ${metaData.title.length} caratteri (min ${titleMin})`);
+      }
+      if (metaData.title.length > titleMax) {
+        issues.push(`❌ Title troppo lungo per ${pageType}: ${metaData.title.length} caratteri (max ${titleMax})`);
+      }
+
+      // Controllo specifico per categorie
+      if (pageType === 'category') {
+        const categoryKeywords = ['categoria', 'category', 'prodotti', 'products', 'servizi', 'services'];
+        const hasCategory = categoryKeywords.some(keyword =>
+          metaData.title.toLowerCase().includes(keyword)
+        );
+        if (!hasCategory) {
+          issues.push(`💡 Suggerimento: Considera di includere "categoria" o "prodotti" nel title`);
+        }
       }
     }
 
-    // Controlla description
+    // Controlla description in base al tipo di pagina
     if (!metaData.description) {
-      issues.push('❌ Meta description mancante');
+      issues.push(`❌ Meta description mancante (pagina ${pageType})`);
     } else {
-      if (metaData.description.length < 70) {
-        issues.push(`❌ Description troppo corta: ${metaData.description.length} caratteri (min 70)`);
+      let descMin = 70, descMax = 155;
+
+      if (pageType === 'category') {
+        descMin = 60; // Categorie possono avere description più concise
+        descMax = 160;
       }
-      if (metaData.description.length > 155) {
-        issues.push(`❌ Description troppo lunga: ${metaData.description.length} caratteri (max 155)`);
+
+      if (metaData.description.length < descMin) {
+        issues.push(`❌ Description troppo corta per ${pageType}: ${metaData.description.length} caratteri (min ${descMin})`);
+      }
+      if (metaData.description.length > descMax) {
+        issues.push(`❌ Description troppo lunga per ${pageType}: ${metaData.description.length} caratteri (max ${descMax})`);
+      }
+
+      // Controllo specifico per categorie
+      if (pageType === 'category') {
+        const categoryDescWords = ['scopri', 'esplora', 'trova', 'selezione', 'collezione'];
+        const hasCategoryDesc = categoryDescWords.some(word =>
+          metaData.description.toLowerCase().includes(word)
+        );
+        if (!hasCategoryDesc) {
+          issues.push(`💡 Suggerimento: Usa parole come "scopri", "esplora" nella description di categoria`);
+        }
       }
     }
 
@@ -143,6 +231,7 @@ class SEOChecker {
       titleLength: metaData.title.length,
       description: metaData.description,
       descriptionLength: metaData.description.length,
+      pageType,
       issues,
       valid: issues.length === 0
     };
@@ -153,17 +242,98 @@ class SEOChecker {
 
     await this.page.goto(baseUrl);
 
-    // Trova tutti i link di navigazione
-    const navLinks = await this.page.$$eval('nav a, .menu a, .navigation a', els =>
+    // Trova tutti i link di navigazione (incluse categorie)
+    const navLinks = await this.page.$$eval(`
+      nav a, .menu a, .navigation a,
+      .category-menu a, .categories a,
+      .product-categories a, .cat-menu a,
+      .main-menu a, .primary-menu a,
+      .categoria a, .categorie a,
+      [class*="category"] a,
+      [class*="categoria"] a
+    `, els =>
       els.map(el => ({
         href: el.href,
-        text: el.textContent.trim()
-      })).filter(link => link.href && !link.href.includes('#') && !link.href.includes('mailto:'))
+        text: el.textContent.trim(),
+        className: el.className
+      })).filter(link =>
+        link.href &&
+        !link.href.includes('#') &&
+        !link.href.includes('mailto:') &&
+        !link.href.includes('tel:') &&
+        link.text.length > 0
+      )
     );
 
-    console.log(`📝 Trovati ${navLinks.length} link di navigazione`);
+    // Cerca anche link nelle categorie nel footer o sidebar
+    const additionalCategoryLinks = await this.page.$$eval(`
+      .footer a, .sidebar a, .widget a,
+      [class*="category-list"] a,
+      [class*="cat-list"] a,
+      .product-menu a
+    `, els =>
+      els.map(el => ({
+        href: el.href,
+        text: el.textContent.trim(),
+        className: el.className
+      })).filter(link => {
+        if (!link.href || link.href.includes('#') || link.href.includes('mailto:')) return false;
 
-    const pagesToCheck = [baseUrl, ...navLinks.map(link => link.href)]
+        // Filtra solo link che sembrano categorie
+        const categoryIndicators = [
+          'category', 'categoria', 'cat-', 'product', 'service', 'tag'
+        ];
+        const url = link.href.toLowerCase();
+        const text = link.text.toLowerCase();
+
+        return categoryIndicators.some(indicator =>
+          url.includes(indicator) || text.includes(indicator)
+        );
+      })
+    ).catch(() => []);
+
+    // Combina tutti i link e rimuovi duplicati
+    const allLinks = [...navLinks, ...additionalCategoryLinks];
+    const uniqueLinks = allLinks.filter((link, index, arr) =>
+      arr.findIndex(l => l.href === link.href) === index
+    );
+
+    console.log(`📝 Trovati ${uniqueLinks.length} link totali (${navLinks.length} navigazione + ${additionalCategoryLinks.length} categorie aggiuntive)`);
+
+    // Classifica i link per tipo
+    const linksByType = {
+      category: [],
+      article: [],
+      page: [],
+      homepage: []
+    };
+
+    uniqueLinks.forEach(link => {
+      const pageType = this.detectPageType(link.href);
+      linksByType[pageType].push(link);
+    });
+
+    console.log(`   📁 Categorie: ${linksByType.category.length}`);
+    console.log(`   📰 Articoli: ${linksByType.article.length}`);
+    console.log(`   📄 Pagine: ${linksByType.page.length}`);
+
+    // Prioritizza le categorie nel controllo
+    const prioritizedPages = [baseUrl];
+
+    // Aggiungi tutte le categorie trovate
+    prioritizedPages.push(...linksByType.category.map(link => link.href));
+
+    // Aggiungi altre pagine fino al limite
+    const remainingSlots = maxPages - prioritizedPages.length;
+    if (remainingSlots > 0) {
+      const otherPages = [
+        ...linksByType.page.map(link => link.href),
+        ...linksByType.article.map(link => link.href)
+      ];
+      prioritizedPages.push(...otherPages.slice(0, remainingSlots));
+    }
+
+    const pagesToCheck = prioritizedPages
       .filter((url, index, arr) => arr.indexOf(url) === index) // Rimuovi duplicati
       .slice(0, maxPages);
 
@@ -221,11 +391,20 @@ class SEOChecker {
       totalIssues += allIssues.length;
       if (allIssues.length > 0) pagesWithIssues++;
 
-      console.log(`\n${index + 1}. ${allIssues.length === 0 ? '✅' : '⚠️'} ${result.url}`);
+      const pageTypeEmoji = {
+        homepage: '🏠',
+        category: '📁',
+        article: '📰',
+        page: '📄'
+      };
+
+      const emoji = pageTypeEmoji[result.meta?.pageType] || '📄';
+      console.log(`\n${index + 1}. ${allIssues.length === 0 ? '✅' : '⚠️'} ${emoji} ${result.url}`);
 
       if (result.meta) {
         console.log(`   📄 Title: "${result.meta.title}" (${result.meta.titleLength} char)`);
         console.log(`   📝 Description: "${result.meta.description}" (${result.meta.descriptionLength} char)`);
+        console.log(`   🔖 Tipo: ${result.meta.pageType}`);
       }
 
       if (result.heading) {
@@ -264,13 +443,754 @@ class SEOChecker {
       });
     }
 
+    // Statistiche per tipo di pagina
+    const pageTypeStats = {
+      homepage: 0,
+      category: 0,
+      article: 0,
+      page: 0
+    };
+
+    this.results.forEach(result => {
+      if (result.meta?.pageType) {
+        pageTypeStats[result.meta.pageType]++;
+      }
+    });
+
     console.log('\n📈 STATISTICHE FINALI');
     console.log('='.repeat(30));
     console.log(`Pagine controllate: ${this.results.length}`);
+    console.log(`  🏠 Homepage: ${pageTypeStats.homepage}`);
+    console.log(`  📁 Categorie: ${pageTypeStats.category}`);
+    console.log(`  📰 Articoli: ${pageTypeStats.article}`);
+    console.log(`  📄 Altre pagine: ${pageTypeStats.page}`);
     console.log(`Pagine con problemi: ${pagesWithIssues}`);
     console.log(`Problemi totali: ${totalIssues}`);
     console.log(`Title duplicati: ${duplicateTitles.length}`);
     console.log(`Description duplicate: ${duplicateDescs.length}`);
+  }
+
+  generateMarkdownReport(filename = null) {
+    const endTime = new Date();
+    const duration = Math.round((endTime - this.startTime) / 1000);
+
+    if (!filename) {
+      const timestamp = endTime.toISOString().slice(0, 19).replace(/[T:]/g, '-');
+      filename = `seo-report-${timestamp}.md`;
+    }
+
+    let totalIssues = 0;
+    let pagesWithIssues = 0;
+    let pagesWithoutErrors = 0;
+
+    // Calcola statistiche
+    const pageTypeStats = {
+      homepage: 0,
+      category: 0,
+      article: 0,
+      page: 0
+    };
+
+    this.results.forEach(result => {
+      if (result.error) return;
+
+      // Conta per tipo di pagina
+      if (result.meta?.pageType) {
+        pageTypeStats[result.meta.pageType]++;
+      }
+
+      const headingIssues = result.heading?.issues || [];
+      const metaIssues = result.meta?.issues || [];
+      const allIssues = [...headingIssues, ...metaIssues];
+
+      totalIssues += allIssues.length;
+      if (allIssues.length > 0) {
+        pagesWithIssues++;
+      } else {
+        pagesWithoutErrors++;
+      }
+    });
+
+    const duplicateTitles = Array.from(this.duplicateTitles.entries())
+      .filter(([title, urls]) => urls.length > 1);
+
+    const duplicateDescs = Array.from(this.duplicateDescriptions.entries())
+      .filter(([desc, urls]) => urls.length > 1);
+
+    // Genera contenuto markdown
+    let markdown = `# 📊 Report SEO
+
+## ℹ️ Informazioni Generali
+
+- **Data**: ${endTime.toLocaleDateString('it-IT')} alle ${endTime.toLocaleTimeString('it-IT')}
+- **Durata controllo**: ${duration} secondi
+- **Pagine totali**: ${this.results.length}
+  - 🏠 Homepage: ${pageTypeStats.homepage}
+  - 📁 Categorie: ${pageTypeStats.category}
+  - 📰 Articoli: ${pageTypeStats.article}
+  - 📄 Altre pagine: ${pageTypeStats.page}
+- **Pagine senza errori**: ${pagesWithoutErrors}
+- **Pagine con problemi**: ${pagesWithIssues}
+- **Problemi totali**: ${totalIssues}
+
+## 📈 Riepilogo Problemi
+
+| Tipo | Quantità |
+|------|----------|
+| 🚨 Problemi SEO totali | ${totalIssues} |
+| 📄 Title duplicati | ${duplicateTitles.length} |
+| 📝 Description duplicate | ${duplicateDescs.length} |
+| ❌ Pagine con errori | ${this.results.filter(r => r.error).length} |
+
+## 📋 Dettaglio Pagine
+
+`;
+
+    // Dettaglio per ogni pagina
+    this.results.forEach((result, index) => {
+      const pageNumber = index + 1;
+
+      if (result.error) {
+        markdown += `### ${pageNumber}. ❌ ERRORE - ${result.url}
+
+**Errore**: ${result.error}
+
+---
+
+`;
+        return;
+      }
+
+      const headingIssues = result.heading?.issues || [];
+      const metaIssues = result.meta?.issues || [];
+      const allIssues = [...headingIssues, ...metaIssues];
+      const status = allIssues.length === 0 ? '✅ VALIDA' : '⚠️ PROBLEMI';
+
+      const pageTypeEmoji = {
+        homepage: '🏠',
+        category: '📁',
+        article: '📰',
+        page: '📄'
+      };
+
+      const emoji = pageTypeEmoji[result.meta?.pageType] || '📄';
+
+      markdown += `### ${pageNumber}. ${status} ${emoji} ${result.url}
+
+**Tipo**: ${result.meta?.pageType || 'sconosciuto'}
+
+`;
+
+      // Meta informazioni
+      if (result.meta) {
+        markdown += `**📄 Title**: "${result.meta.title}" _(${result.meta.titleLength} caratteri)_
+
+**📝 Description**: "${result.meta.description}" _(${result.meta.descriptionLength} caratteri)_
+
+`;
+      }
+
+      // Struttura heading
+      if (result.heading && result.heading.headings.length > 0) {
+        markdown += `**📊 Struttura Heading** (${result.heading.headings.length} elementi):
+
+`;
+        result.heading.headings.forEach((h, i) => {
+          markdown += `${i + 1}. **${h.tag.toUpperCase()}**: ${h.text}\n`;
+        });
+        markdown += '\n';
+      }
+
+      // Problemi trovati
+      if (allIssues.length > 0) {
+        markdown += `**🚨 Problemi riscontrati**:
+
+`;
+        allIssues.forEach(issue => {
+          markdown += `- ${issue}\n`;
+        });
+        markdown += '\n';
+      }
+
+      markdown += '---\n\n';
+    });
+
+    // Sezione duplicati
+    if (duplicateTitles.length > 0 || duplicateDescs.length > 0) {
+      markdown += `## 🔍 Controllo Duplicati
+
+`;
+
+      if (duplicateTitles.length > 0) {
+        markdown += `### ❌ Title Duplicati
+
+`;
+        duplicateTitles.forEach(([title, urls]) => {
+          markdown += `**"${title}"**:
+`;
+          urls.forEach(url => {
+            markdown += `- ${url}\n`;
+          });
+          markdown += '\n';
+        });
+      }
+
+      if (duplicateDescs.length > 0) {
+        markdown += `### ❌ Description Duplicate
+
+`;
+        duplicateDescs.forEach(([desc, urls]) => {
+          markdown += `**"${desc}"**:
+`;
+          urls.forEach(url => {
+            markdown += `- ${url}\n`;
+          });
+          markdown += '\n';
+        });
+      }
+    }
+
+    // Raccomandazioni
+    markdown += `## 💡 Raccomandazioni
+
+### Title
+- ✅ Lunghezza ottimale: 30-60 caratteri
+- ✅ Ogni pagina deve avere un title unico
+- ✅ Includere parole chiave principali
+
+### Meta Description
+- ✅ Lunghezza ottimale: 70-155 caratteri
+- ✅ Ogni pagina deve avere una description unica
+- ✅ Deve essere descrittiva e invitante al click
+
+### Struttura Heading
+- ✅ Una sola H1 per pagina
+- ✅ Sequenza logica: H1 → H2 → H3 (no salti)
+- ✅ Utilizzare per strutturare il contenuto
+
+---
+
+*Report generato automaticamente da SEO Checker con Playwright*
+`;
+
+    // Salva il file
+    const filepath = path.join(process.cwd(), filename);
+    fs.writeFileSync(filepath, markdown, 'utf8');
+
+    console.log(`\n📄 Report Markdown salvato: ${filepath}`);
+    return filepath;
+  }
+
+  generateHTMLReport(filename = null) {
+    const endTime = new Date();
+    const duration = Math.round((endTime - this.startTime) / 1000);
+
+    if (!filename) {
+      const timestamp = endTime.toISOString().slice(0, 19).replace(/[T:]/g, '-');
+      filename = `seo-report-${timestamp}.html`;
+    }
+
+    let totalIssues = 0;
+    let pagesWithIssues = 0;
+    let pagesWithoutErrors = 0;
+
+    // Calcola statistiche
+    this.results.forEach(result => {
+      if (result.error) return;
+
+      const headingIssues = result.heading?.issues || [];
+      const metaIssues = result.meta?.issues || [];
+      const allIssues = [...headingIssues, ...metaIssues];
+
+      totalIssues += allIssues.length;
+      if (allIssues.length > 0) {
+        pagesWithIssues++;
+      } else {
+        pagesWithoutErrors++;
+      }
+    });
+
+    const duplicateTitles = Array.from(this.duplicateTitles.entries())
+      .filter(([title, urls]) => urls.length > 1);
+
+    const duplicateDescs = Array.from(this.duplicateDescriptions.entries())
+      .filter(([desc, urls]) => urls.length > 1);
+
+    // Template HTML professionale
+    const html = `<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEO Report - ${endTime.toLocaleDateString('it-IT')}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f8f9fa;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 0;
+            margin-bottom: 30px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .summary-table {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+
+        .table-header {
+            background: #667eea;
+            color: white;
+            padding: 20px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .page-card {
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+
+        .page-header {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .page-status {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-success { background: #28a745; }
+        .status-warning { background: #ffc107; }
+        .status-error { background: #dc3545; }
+
+        .page-url {
+            font-weight: 600;
+            color: #333;
+            word-break: break-all;
+        }
+
+        .page-content {
+            padding: 20px;
+        }
+
+        .meta-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .meta-item h4 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .meta-value {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            border-left: 3px solid #667eea;
+        }
+
+        .char-count {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .headings-list {
+            margin-bottom: 20px;
+        }
+
+        .heading-item {
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 3px solid #28a745;
+            font-size: 0.9rem;
+        }
+
+        .heading-tag {
+            font-weight: bold;
+            color: #667eea;
+            margin-right: 10px;
+        }
+
+        .issues-list {
+            margin-top: 15px;
+        }
+
+        .issue-item {
+            padding: 10px 15px;
+            margin: 5px 0;
+            background: #fff5f5;
+            border-left: 3px solid #dc3545;
+            border-radius: 5px;
+            color: #721c24;
+        }
+
+        .duplicates-section {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+
+        .duplicate-group {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #fff5f5;
+            border-radius: 8px;
+            border-left: 4px solid #dc3545;
+        }
+
+        .duplicate-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #721c24;
+        }
+
+        .duplicate-urls {
+            list-style: none;
+            margin-left: 15px;
+        }
+
+        .duplicate-urls li {
+            padding: 5px 0;
+            color: #666;
+        }
+
+        .recommendations {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+
+        .rec-section {
+            margin-bottom: 20px;
+        }
+
+        .rec-section h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .rec-list {
+            list-style: none;
+        }
+
+        .rec-list li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+
+        .rec-list li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 10px; }
+            .header h1 { font-size: 2rem; }
+            .meta-info { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Report SEO</h1>
+            <div class="subtitle">${endTime.toLocaleDateString('it-IT')} alle ${endTime.toLocaleTimeString('it-IT')} • Durata: ${duration}s</div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">${this.results.length}</div>
+                <div class="stat-label">Pagine Totali</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${pagesWithoutErrors}</div>
+                <div class="stat-label">Senza Errori</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${pagesWithIssues}</div>
+                <div class="stat-label">Con Problemi</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${totalIssues}</div>
+                <div class="stat-label">Problemi Totali</div>
+            </div>
+        </div>
+
+        <div class="summary-table">
+            <div class="table-header">📈 Riepilogo Problemi</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Quantità</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>🚨 Problemi SEO totali</td><td>${totalIssues}</td></tr>
+                    <tr><td>📄 Title duplicati</td><td>${duplicateTitles.length}</td></tr>
+                    <tr><td>📝 Description duplicate</td><td>${duplicateDescs.length}</td></tr>
+                    <tr><td>❌ Pagine con errori</td><td>${this.results.filter(r => r.error).length}</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2 style="margin-bottom: 20px; color: #333;">📋 Dettaglio Pagine</h2>
+
+        ${this.results.map((result, index) => {
+          const pageNumber = index + 1;
+
+          if (result.error) {
+            return `
+            <div class="page-card">
+                <div class="page-header">
+                    <div class="page-status status-error"></div>
+                    <div class="page-url">${pageNumber}. ${result.url}</div>
+                </div>
+                <div class="page-content">
+                    <div class="issue-item">Errore: ${result.error}</div>
+                </div>
+            </div>`;
+          }
+
+          const headingIssues = result.heading?.issues || [];
+          const metaIssues = result.meta?.issues || [];
+          const allIssues = [...headingIssues, ...metaIssues];
+          const statusClass = allIssues.length === 0 ? 'status-success' : 'status-warning';
+
+          return `
+          <div class="page-card">
+              <div class="page-header">
+                  <div class="page-status ${statusClass}"></div>
+                  <div class="page-url">${pageNumber}. ${result.url}</div>
+              </div>
+              <div class="page-content">
+                  ${result.meta ? `
+                  <div class="meta-info">
+                      <div class="meta-item">
+                          <h4>📄 Title</h4>
+                          <div class="meta-value">
+                              ${result.meta.title}
+                              <div class="char-count">${result.meta.titleLength} caratteri</div>
+                          </div>
+                      </div>
+                      <div class="meta-item">
+                          <h4>📝 Description</h4>
+                          <div class="meta-value">
+                              ${result.meta.description}
+                              <div class="char-count">${result.meta.descriptionLength} caratteri</div>
+                          </div>
+                      </div>
+                  </div>` : ''}
+
+                  ${result.heading && result.heading.headings.length > 0 ? `
+                  <div class="headings-list">
+                      <h4 style="margin-bottom: 10px; color: #667eea;">📊 Struttura Heading (${result.heading.headings.length} elementi)</h4>
+                      ${result.heading.headings.map((h, i) => `
+                          <div class="heading-item">
+                              <span class="heading-tag">${h.tag.toUpperCase()}</span>
+                              ${h.text}
+                          </div>
+                      `).join('')}
+                  </div>` : ''}
+
+                  ${allIssues.length > 0 ? `
+                  <div class="issues-list">
+                      <h4 style="margin-bottom: 10px; color: #dc3545;">🚨 Problemi Riscontrati</h4>
+                      ${allIssues.map(issue => `<div class="issue-item">${issue}</div>`).join('')}
+                  </div>` : ''}
+              </div>
+          </div>`;
+        }).join('')}
+
+        ${duplicateTitles.length > 0 || duplicateDescs.length > 0 ? `
+        <div class="duplicates-section">
+            <h2 style="margin-bottom: 20px; color: #333;">🔍 Controllo Duplicati</h2>
+
+            ${duplicateTitles.length > 0 ? `
+            <h3 style="color: #dc3545; margin-bottom: 15px;">❌ Title Duplicati</h3>
+            ${duplicateTitles.map(([title, urls]) => `
+                <div class="duplicate-group">
+                    <div class="duplicate-title">"${title}"</div>
+                    <ul class="duplicate-urls">
+                        ${urls.map(url => `<li>• ${url}</li>`).join('')}
+                    </ul>
+                </div>
+            `).join('')}` : ''}
+
+            ${duplicateDescs.length > 0 ? `
+            <h3 style="color: #dc3545; margin-bottom: 15px;">❌ Description Duplicate</h3>
+            ${duplicateDescs.map(([desc, urls]) => `
+                <div class="duplicate-group">
+                    <div class="duplicate-title">"${desc}"</div>
+                    <ul class="duplicate-urls">
+                        ${urls.map(url => `<li>• ${url}</li>`).join('')}
+                    </ul>
+                </div>
+            `).join('')}` : ''}
+        </div>` : ''}
+
+        <div class="recommendations">
+            <h2 style="margin-bottom: 20px; color: #333;">💡 Raccomandazioni</h2>
+
+            <div class="rec-section">
+                <h3>Title</h3>
+                <ul class="rec-list">
+                    <li>Lunghezza ottimale: 30-60 caratteri</li>
+                    <li>Ogni pagina deve avere un title unico</li>
+                    <li>Includere parole chiave principali</li>
+                </ul>
+            </div>
+
+            <div class="rec-section">
+                <h3>Meta Description</h3>
+                <ul class="rec-list">
+                    <li>Lunghezza ottimale: 70-155 caratteri</li>
+                    <li>Ogni pagina deve avere una description unica</li>
+                    <li>Deve essere descrittiva e invitante al click</li>
+                </ul>
+            </div>
+
+            <div class="rec-section">
+                <h3>Struttura Heading</h3>
+                <ul class="rec-list">
+                    <li>Una sola H1 per pagina</li>
+                    <li>Sequenza logica: H1 → H2 → H3 (no salti)</li>
+                    <li>Utilizzare per strutturare il contenuto</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Report generato automaticamente da SEO Checker con Playwright</p>
+        </div>
+    </div>
+</body>
+</html>`;
+
+    // Salva il file
+    const filepath = path.join(process.cwd(), filename);
+    fs.writeFileSync(filepath, html, 'utf8');
+
+    console.log(`\n📄 Report HTML salvato: ${filepath}`);
+    return filepath;
   }
 
   async close() {
