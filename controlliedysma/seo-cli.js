@@ -17,6 +17,7 @@ Parametri:
 
 Opzioni:
   -p, --pages <numero>   Numero massimo di pagine da controllare (default: 5)
+  -c, --crawl           Modalità crawling completo del sito (ignora -p)
   -o, --output <file>    Nome file report (default: auto-generato)
   -f, --format <tipo>    Formato report: html, md, both (default: both)
   -h, --headless        Esegui in modalità headless (senza aprire browser)
@@ -26,7 +27,8 @@ Opzioni:
 Esempi:
   node seo-cli.js https://example.com
   node seo-cli.js https://example.com -p 10
-  node seo-cli.js https://example.com -f html -o report-esempio
+  node seo-cli.js https://example.com --crawl
+  node seo-cli.js https://example.com --crawl -f html -o report-completo
   node seo-cli.js https://example.com -f md --headless
   node seo-cli.js https://example.com --no-profile -f both
 
@@ -45,6 +47,7 @@ function parseArgs() {
   const options = {
     url: null,
     pages: 5,
+    crawl: false,
     output: null,
     format: 'both',
     headless: false,
@@ -97,6 +100,11 @@ function parseArgs() {
         i++; // Skip del prossimo argomento
         break;
 
+      case '-c':
+      case '--crawl':
+        options.crawl = true;
+        break;
+
       case '-h':
       case '--headless':
         options.headless = true;
@@ -136,9 +144,9 @@ async function runSEOCheck() {
     console.log('🚀 SEO Checker CLI');
     console.log('='.repeat(40));
     console.log(`📍 URL: ${options.url}`);
-    console.log(`📄 Pagine max: ${options.pages}`);
+    console.log(`🕷️  Modalità: ${options.crawl ? 'Crawling completo' : `Limitato a ${options.pages} pagine`}`);
     console.log(`📋 Formato: ${options.format.toUpperCase()}`);
-    console.log(`🖥️  Modalità: ${options.headless ? 'Headless' : 'Visibile'}`);
+    console.log(`🖥️  Browser: ${options.headless ? 'Headless' : 'Visibile'}`);
     console.log(`👤 Profilo Chrome: ${options.useProfile ? 'Sì' : 'No'}`);
     console.log('='.repeat(40));
     console.log();
@@ -161,8 +169,13 @@ async function runSEOCheck() {
     await checker.init(initOptions);
 
     // Esegui controllo
-    console.log(`🔍 Inizio controllo di ${options.url}...`);
-    await checker.navigateAndCheck(options.url, options.pages);
+    if (options.crawl) {
+      console.log(`🕷️  Inizio crawling completo di ${options.url}...`);
+      await checker.crawlSite(options.url);
+    } else {
+      console.log(`🔍 Inizio controllo limitato di ${options.url}...`);
+      await checker.navigateAndCheck(options.url, options.pages);
+    }
 
     // Genera report console
     console.log('\n' + '='.repeat(50));

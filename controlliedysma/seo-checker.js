@@ -8,9 +8,12 @@ class SEOChecker {
     this.page = null;
     this.results = [];
     this.visitedPages = new Set();
+    this.pendingPages = new Set();
     this.duplicateTitles = new Map();
     this.duplicateDescriptions = new Map();
     this.startTime = new Date();
+    this.baseDomain = null;
+    this.maxPages = null;
   }
 
   async init(options = {}) {
@@ -39,7 +42,6 @@ class SEOChecker {
   }
 
   async checkHeadingStructure(url) {
-    console.log(`\n📊 Controllo struttura heading per: ${url}`);
 
     await this.page.goto(url);
 
@@ -122,8 +124,39 @@ class SEOChecker {
     return 'page';
   }
 
+  async checkPageSize(url) {
+
+    const response = await this.page.goto(url, { waitUntil: 'networkidle' });
+
+    // Ottieni la dimensione della risposta HTTP
+    const contentLength = response.headers()['content-length'];
+    let pageSize = 0;
+
+    if (contentLength) {
+      pageSize = parseInt(contentLength);
+    } else {
+      // Se non c'è content-length, calcola la dimensione del DOM
+      const bodyContent = await this.page.content();
+      pageSize = Buffer.byteLength(bodyContent, 'utf8');
+    }
+
+    const pageSizeKB = Math.round(pageSize / 1024);
+    const issues = [];
+
+    if (pageSizeKB > 200) {
+      issues.push(`❌ Pagina troppo pesante: ${pageSizeKB} KB (limite: 200 KB)`);
+    }
+
+    return {
+      url,
+      pageSize,
+      pageSizeKB,
+      issues,
+      valid: issues.length === 0
+    };
+  }
+
   async checkMetaTags(url) {
-    console.log(`\n🏷️  Controllo meta tags per: ${url}`);
 
     await this.page.goto(url);
 
@@ -237,6 +270,175 @@ class SEOChecker {
     };
   }
 
+  isValidUrl(url) {
+    try {
+      const urlObj = new URL(url);
+
+      // Deve essere stesso dominio (gestisce www)
+      const normalizedHostname = urlObj.hostname.replace(/^www\./, '');
+      const normalizedBaseDomain = this.baseDomain.replace(/^www\./, '');
+
+      if (normalizedHostname !== normalizedBaseDomain) {
+        return false;
+      }
+
+      // Esclude file documenti e immagini
+      const excludedExtensions = [
+        '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+        '.zip', '.rar', '.tar', '.gz',
+        '.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.ico',
+        '.mp4', '.avi', '.mov', '.wmv', '.mp3', '.wav',
+        '.css', '.js', '.xml', '.json', '.txt'
+      ];
+
+      const pathname = urlObj.pathname.toLowerCase();
+      if (excludedExtensions.some(ext => pathname.endsWith(ext))) {
+        return false;
+      }
+
+      // Esclude parametri comuni di sessione/tracking
+      const excludedParams = ['utm_', 'fbclid', 'gclid', 'ref=', 'source='];
+      const search = urlObj.search.toLowerCase();
+      if (excludedParams.some(param => search.includes(param))) {
+        return false;
+      }
+
+      // Esclude anchor/fragment solo se è solo un anchor senza path diverso
+      if (urlObj.hash && urlObj.pathname === new URL(this.page.url()).pathname) {
+        return false;
+      }
+
+      // Esclude email e telefono
+      if (url.includes('mailto:') || url.includes('tel:')) {
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async discoverLinksOnPage() {
+    try {
+      const links = await this.page.$$eval('a[href]', els =>
+        els.map(el => {
+          const href = el.href;
+          return href;
+        }).filter(href => href && href.trim().length > 0)
+      );
+
+      const validLinks = links.filter(link => this.isValidUrl(link));
+
+      // Normalizza URL (rimuovi trailing slash, parametri inutili, gestisci www)
+      const normalizedLinks = validLinks.map(link => {
+        const url = new URL(link);
+        // Rimuovi trailing slash tranne per root
+        if (url.pathname !== '/' && url.pathname.endsWith('/')) {
+          url.pathname = url.pathname.slice(0, -1);
+        }
+        // Normalizza hostname rimuovendo www per evitare duplicati
+        url.hostname = url.hostname.replace(/^www\./, '');
+        return url.toString();
+      });
+
+      return [...new Set(normalizedLinks)]; // Rimuovi duplicati
+    } catch (error) {
+      console.warn(`Errore durante scoperta link: ${error.message}`);
+      return [];
+    }
+  }
+
+  async crawlSite(baseUrl, maxPages = null) {
+    console.log(`\n🕷️  Inizio crawling completo di: ${baseUrl}`);
+
+    // Imposta dominio base
+    this.baseDomain = new URL(baseUrl).hostname;
+    this.maxPages = maxPages;
+
+    // Inizializza con URL base
+    this.pendingPages.add(baseUrl);
+
+    let crawledCount = 0;
+
+    while (this.pendingPages.size > 0 && (maxPages === null || crawledCount < maxPages)) {
+      // Prendi il prossimo URL da elaborare
+      const currentUrl = Array.from(this.pendingPages)[0];
+      this.pendingPages.delete(currentUrl);
+
+      // Salta se già visitato
+      if (this.visitedPages.has(currentUrl)) {
+        continue;
+      }
+
+      crawledCount++;
+      console.log(`\n[${crawledCount}${maxPages ? `/${maxPages}` : ''}] 🔍 ${currentUrl}`);
+
+      try {
+        await this.page.goto(currentUrl, {
+          waitUntil: 'networkidle',
+          timeout: 30000
+        });
+
+        // Scopri nuovi link sulla pagina corrente
+        const discoveredLinks = await this.discoverLinksOnPage();
+
+        // Aggiungi nuovi link alla coda
+        discoveredLinks.forEach(link => {
+          if (!this.visitedPages.has(link) && !this.pendingPages.has(link)) {
+            this.pendingPages.add(link);
+          }
+        });
+
+        // Esegui controlli SEO
+        const headingResult = await this.checkHeadingStructure(currentUrl);
+        const metaResult = await this.checkMetaTags(currentUrl);
+        const pageSizeResult = await this.checkPageSize(currentUrl);
+
+        this.results.push({
+          url: currentUrl,
+          heading: headingResult,
+          meta: metaResult,
+          pageSize: pageSizeResult,
+          timestamp: new Date().toISOString()
+        });
+
+        this.visitedPages.add(currentUrl);
+
+        // Status update semplificato
+        console.log(`   📊 Pagine rimanenti: ${this.pendingPages.size}`);
+
+        // Pausa tra richieste per non sovraccaricare il server
+        await this.page.waitForTimeout(1000);
+
+      } catch (error) {
+        console.error(`   ❌ Errore su ${currentUrl}: ${error.message}`);
+
+        this.results.push({
+          url: currentUrl,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+
+        this.visitedPages.add(currentUrl);
+      }
+    }
+
+    const totalDiscovered = this.visitedPages.size + this.pendingPages.size;
+    const crawlPercentage = Math.round((crawledCount / totalDiscovered) * 100);
+
+    console.log(`\n🎯 RIEPILOGO CRAWLING`);
+    console.log(`=`.repeat(40));
+    console.log(`✅ Pagine elaborate: ${crawledCount}/${totalDiscovered} (${crawlPercentage}%)`);
+    console.log(`🔍 Pagine scoperte totali: ${totalDiscovered}`);
+    console.log(`⏭️  Pagine saltate: ${this.pendingPages.size}`);
+    console.log(`⏱️  Durata: ${Math.round((new Date() - this.startTime) / 1000)}s`);
+
+    if (maxPages && crawledCount >= maxPages) {
+      console.log(`🛑 Limite raggiunto (${maxPages} pagine)`);
+    }
+  }
+
   async navigateAndCheck(baseUrl, maxPages = 10) {
     console.log(`\n🚀 Inizio navigazione da: ${baseUrl}`);
 
@@ -347,10 +549,14 @@ class SEOChecker {
         // Controlla meta tags
         const metaResult = await this.checkMetaTags(url);
 
+        // Controlla dimensioni pagina
+        const pageSizeResult = await this.checkPageSize(url);
+
         this.results.push({
           url,
           heading: headingResult,
           meta: metaResult,
+          pageSize: pageSizeResult,
           timestamp: new Date().toISOString()
         });
 
@@ -386,7 +592,8 @@ class SEOChecker {
 
       const headingIssues = result.heading?.issues || [];
       const metaIssues = result.meta?.issues || [];
-      const allIssues = [...headingIssues, ...metaIssues];
+      const pageSizeIssues = result.pageSize?.issues || [];
+      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues];
 
       totalIssues += allIssues.length;
       if (allIssues.length > 0) pagesWithIssues++;
@@ -409,6 +616,10 @@ class SEOChecker {
 
       if (result.heading) {
         console.log(`   📊 Headings: ${result.heading.headings.length} trovati`);
+      }
+
+      if (result.pageSize) {
+        console.log(`   📏 Dimensione: ${result.pageSize.pageSizeKB} KB`);
       }
 
       if (allIssues.length > 0) {
@@ -501,7 +712,8 @@ class SEOChecker {
 
       const headingIssues = result.heading?.issues || [];
       const metaIssues = result.meta?.issues || [];
-      const allIssues = [...headingIssues, ...metaIssues];
+      const pageSizeIssues = result.pageSize?.issues || [];
+      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues];
 
       totalIssues += allIssues.length;
       if (allIssues.length > 0) {
@@ -563,7 +775,8 @@ class SEOChecker {
 
       const headingIssues = result.heading?.issues || [];
       const metaIssues = result.meta?.issues || [];
-      const allIssues = [...headingIssues, ...metaIssues];
+      const pageSizeIssues = result.pageSize?.issues || [];
+      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues];
       const status = allIssues.length === 0 ? '✅ VALIDA' : '⚠️ PROBLEMI';
 
       const pageTypeEmoji = {
@@ -599,6 +812,13 @@ class SEOChecker {
           markdown += `${i + 1}. **${h.tag.toUpperCase()}**: ${h.text}\n`;
         });
         markdown += '\n';
+      }
+
+      // Dimensioni pagina
+      if (result.pageSize) {
+        markdown += `**📏 Dimensione Pagina**: ${result.pageSize.pageSizeKB} KB
+
+`;
       }
 
       // Problemi trovati
@@ -700,7 +920,8 @@ class SEOChecker {
 
       const headingIssues = result.heading?.issues || [];
       const metaIssues = result.meta?.issues || [];
-      const allIssues = [...headingIssues, ...metaIssues];
+      const pageSizeIssues = result.pageSize?.issues || [];
+      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues];
 
       totalIssues += allIssues.length;
       if (allIssues.length > 0) {
@@ -1072,7 +1293,8 @@ class SEOChecker {
 
           const headingIssues = result.heading?.issues || [];
           const metaIssues = result.meta?.issues || [];
-          const allIssues = [...headingIssues, ...metaIssues];
+          const pageSizeIssues = result.pageSize?.issues || [];
+          const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues];
           const statusClass = allIssues.length === 0 ? 'status-success' : 'status-warning';
 
           return `
@@ -1096,6 +1318,17 @@ class SEOChecker {
                           <div class="meta-value">
                               ${result.meta.description}
                               <div class="char-count">${result.meta.descriptionLength} caratteri</div>
+                          </div>
+                      </div>
+                  </div>` : ''}
+
+                  ${result.pageSize ? `
+                  <div class="meta-info">
+                      <div class="meta-item">
+                          <h4>📏 Dimensione Pagina</h4>
+                          <div class="meta-value">
+                              ${result.pageSize.pageSizeKB} KB
+                              ${result.pageSize.pageSizeKB > 200 ? '<span style="color: #dc3545; font-weight: bold;"> (⚠️ Troppo pesante)</span>' : '<span style="color: #28a745;"> (✅ OK)</span>'}
                           </div>
                       </div>
                   </div>` : ''}
