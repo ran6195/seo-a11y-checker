@@ -1,4 +1,6 @@
-const { chromium } = require('playwright');
+const {
+  chromium
+} = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
@@ -21,7 +23,7 @@ class SEOChecker {
     if (options.userDataDir) {
       const contextOptions = {
         headless: false,
-        slowMo: 500,
+        slowMo: 0,
         channel: 'chrome',
         ...options
       };
@@ -32,7 +34,7 @@ class SEOChecker {
       // Modalità normale senza profilo
       const launchOptions = {
         headless: false,
-        slowMo: 500,
+        slowMo: 0,
         ...options
       };
 
@@ -126,7 +128,9 @@ class SEOChecker {
 
   async checkPageSize(url) {
 
-    const response = await this.page.goto(url, { waitUntil: 'networkidle' });
+    const response = await this.page.goto(url, {
+      waitUntil: 'networkidle'
+    });
 
     // Ottieni la dimensione della risposta HTTP
     const contentLength = response.headers()['content-length'];
@@ -156,6 +160,194 @@ class SEOChecker {
     };
   }
 
+  async checkFavicon(url) {
+    await this.page.goto(url);
+
+    const faviconData = await this.page.evaluate(async () => {
+      // Cerca favicon in vari modi
+      const faviconSelectors = [
+        'link[rel="icon"]',
+        'link[rel="shortcut icon"]',
+        'link[rel="apple-touch-icon"]'
+      ];
+
+      let faviconUrl = null;
+
+      for (const selector of faviconSelectors) {
+        const link = document.querySelector(selector);
+        if (link) {
+          faviconUrl = link.href;
+          break;
+        }
+      }
+
+      // Se non trovato nei link, prova il percorso standard
+      if (!faviconUrl) {
+        faviconUrl = '/favicon.ico';
+      }
+
+      // Converte URL relativo in assoluto
+      if (faviconUrl.startsWith('/')) {
+        faviconUrl = new URL(faviconUrl, window.location.origin).href;
+      }
+
+      return {
+        faviconUrl
+      };
+    });
+
+    const issues = [];
+    let faviconExists = false;
+    let faviconFormat = null;
+    let faviconSize = null;
+
+    try {
+      // Testa se la favicon esiste facendo una richiesta HEAD
+      const response = await this.page.request.get(faviconData.faviconUrl);
+
+      if (response.status() === 200) {
+        faviconExists = true;
+        const contentType = response.headers()['content-type'] || '';
+
+        // Determina il formato dalla Content-Type
+        if (contentType.includes('image/x-icon') || contentType.includes('image/vnd.microsoft.icon')) {
+          faviconFormat = 'ico';
+        } else if (contentType.includes('image/png')) {
+          faviconFormat = 'png';
+        } else if (contentType.includes('image/svg')) {
+          faviconFormat = 'svg';
+        } else if (contentType.includes('image/gif')) {
+          faviconFormat = 'gif';
+        } else if (contentType.includes('image/jpeg') || contentType.includes('image/jpg')) {
+          faviconFormat = 'jpg';
+        } else {
+          faviconFormat = 'unknown';
+        }
+
+        // Se non riconosciuto dal Content-Type, prova dall'URL
+        if (faviconFormat === 'unknown') {
+          const urlLower = faviconData.faviconUrl.toLowerCase();
+          if (urlLower.endsWith('.ico')) {
+            faviconFormat = 'ico';
+          } else if (urlLower.endsWith('.png')) {
+            faviconFormat = 'png';
+          } else if (urlLower.endsWith('.svg')) {
+            faviconFormat = 'svg';
+          } else if (urlLower.endsWith('.gif')) {
+            faviconFormat = 'gif';
+          } else if (urlLower.endsWith('.jpg') || urlLower.endsWith('.jpeg')) {
+            faviconFormat = 'jpg';
+          }
+        }
+
+        // Controlla se il formato è valido (PNG o ICO)
+        if (faviconFormat !== 'png' && faviconFormat !== 'ico') {
+          issues.push(`❌ Favicon in formato non ottimale: ${faviconFormat} (consigliati: PNG o ICO)`);
+        }
+
+        // Ottieni dimensione se possibile
+        const contentLength = response.headers()['content-length'];
+        if (contentLength) {
+          faviconSize = parseInt(contentLength);
+        }
+
+      } else {
+        issues.push(`❌ Favicon non trovata: ${faviconData.faviconUrl} (status: ${response.status()})`);
+      }
+
+    } catch (error) {
+      issues.push(`❌ Errore nel controllare favicon: ${error.message}`);
+    }
+
+    // Se non esiste favicon, aggiungi problema
+    if (!faviconExists) {
+      issues.push(`❌ Favicon mancante`);
+    }
+
+    return {
+      url,
+      faviconUrl: faviconData.faviconUrl,
+      faviconExists,
+      faviconFormat,
+      faviconSize,
+      issues,
+      valid: issues.length === 0
+    };
+  }
+
+  async checkEmailExposure(url) {
+    await this.page.goto(url);
+
+    const emailData = await this.page.evaluate(() => {
+      // Pattern più robusto per email
+      const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
+
+      // Ottieni tutto il testo visibile della pagina
+      const bodyText = document.body.innerText || document.body.textContent || '';
+
+      // Cerca anche negli attributi href per mailto
+      const mailtoLinks = Array.from(document.querySelectorAll('a[href^="mailto:"]'))
+        .map(link => link.href.replace('mailto:', ''))
+        .map(email => email.split('?')[0]); // Rimuovi parametri query
+
+      // Trova email nel testo
+      const textEmails = bodyText.match(emailRegex) || [];
+
+      // Combina tutte le email trovate
+      const allEmails = [...new Set([...textEmails, ...mailtoLinks])];
+
+      // Controlla se ci sono email già obfuscate (con parentesi o altri caratteri)
+      const obfuscatedEmails = [];
+      const obfuscatedPatterns = [
+        /\b[A-Za-z0-9._%+-]+\[@\][A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, // email[@]domain.com
+        /\b[A-Za-z0-9._%+-]+\[at\][A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, // email[at]domain.com
+        /\b[A-Za-z0-9._%+-]+\(at\)[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, // email(at)domain.com
+      ];
+
+      obfuscatedPatterns.forEach(pattern => {
+        const matches = bodyText.match(pattern) || [];
+        obfuscatedEmails.push(...matches);
+      });
+
+      return {
+        exposedEmails: allEmails,
+        obfuscatedEmails,
+        pageText: bodyText.substring(0, 500) // Primi 500 caratteri per debug
+      };
+    });
+
+    const issues = [];
+    const suggestions = [];
+
+    if (emailData.exposedEmails.length > 0) {
+      emailData.exposedEmails.forEach(email => {
+        issues.push(`❌ Email esposta pubblicamente: ${email}`);
+
+        // Genera suggerimento obfuscato
+        const obfuscatedEmail = email.replace('@', '[@]');
+        suggestions.push(`💡 Suggerimento: usa "${obfuscatedEmail}" invece di "${email}"`);
+      });
+    }
+
+    // Feedback positivo per email già obfuscate
+    if (emailData.obfuscatedEmails.length > 0) {
+      emailData.obfuscatedEmails.forEach(email => {
+        issues.push(`✅ Email correttamente obfuscata trovata: ${email}`);
+      });
+    }
+
+    return {
+      url,
+      exposedEmails: emailData.exposedEmails,
+      obfuscatedEmails: emailData.obfuscatedEmails,
+      emailCount: emailData.exposedEmails.length,
+      obfuscatedCount: emailData.obfuscatedEmails.length,
+      issues,
+      suggestions,
+      valid: emailData.exposedEmails.length === 0
+    };
+  }
+
   async checkMetaTags(url) {
 
     await this.page.goto(url);
@@ -180,7 +372,8 @@ class SEOChecker {
       issues.push(`❌ Title mancante (pagina ${pageType})`);
     } else {
       // Limiti specifici per tipo di pagina
-      let titleMin = 30, titleMax = 60;
+      let titleMin = 30,
+        titleMax = 60;
 
       if (pageType === 'category') {
         titleMin = 25; // Categorie possono essere più corte
@@ -213,7 +406,8 @@ class SEOChecker {
     if (!metaData.description) {
       issues.push(`❌ Meta description mancante (pagina ${pageType})`);
     } else {
-      let descMin = 70, descMax = 155;
+      let descMin = 70,
+        descMax = 155;
 
       if (pageType === 'category') {
         descMin = 60; // Categorie possono avere description più concise
@@ -270,6 +464,54 @@ class SEOChecker {
     };
   }
 
+  normalizeUrl(url) {
+    try {
+      const urlObj = new URL(url);
+
+      // Rimuovi www per normalizzare hostname
+      urlObj.hostname = urlObj.hostname.replace(/^www\./, '');
+
+      // Normalizza pathname
+      let pathname = urlObj.pathname;
+
+      // Rimuovi trailing slash tranne per root
+      if (pathname !== '/' && pathname.endsWith('/')) {
+        pathname = pathname.slice(0, -1);
+      }
+
+      // Se il path è vuoto, imposta come root
+      if (!pathname || pathname === '') {
+        pathname = '/';
+      }
+
+      urlObj.pathname = pathname;
+
+      // Rimuovi fragment/hash completamente (/, /#, /#section diventano tutti /)
+      urlObj.hash = '';
+
+      // Rimuovi parametri di query comuni (tracking, sessioni)
+      const paramsToRemove = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term',
+        'fbclid', 'gclid', 'ref', 'source', 'campaign'
+      ];
+
+      paramsToRemove.forEach(param => {
+        urlObj.searchParams.delete(param);
+      });
+
+      // Rimuovi parametri che iniziano con pattern comuni
+      const paramPrefixes = ['utm_', 'fb_', 'gclid'];
+      for (const [key] of urlObj.searchParams) {
+        if (paramPrefixes.some(prefix => key.startsWith(prefix))) {
+          urlObj.searchParams.delete(key);
+        }
+      }
+
+      return urlObj.toString();
+    } catch (error) {
+      return url;
+    }
+  }
+
   isValidUrl(url) {
     try {
       const urlObj = new URL(url);
@@ -296,15 +538,10 @@ class SEOChecker {
         return false;
       }
 
-      // Esclude parametri comuni di sessione/tracking
+      // Esclude parametri comuni di sessione/tracking (verrà gestito dalla normalizzazione)
       const excludedParams = ['utm_', 'fbclid', 'gclid', 'ref=', 'source='];
       const search = urlObj.search.toLowerCase();
       if (excludedParams.some(param => search.includes(param))) {
-        return false;
-      }
-
-      // Esclude anchor/fragment solo se è solo un anchor senza path diverso
-      if (urlObj.hash && urlObj.pathname === new URL(this.page.url()).pathname) {
         return false;
       }
 
@@ -330,17 +567,8 @@ class SEOChecker {
 
       const validLinks = links.filter(link => this.isValidUrl(link));
 
-      // Normalizza URL (rimuovi trailing slash, parametri inutili, gestisci www)
-      const normalizedLinks = validLinks.map(link => {
-        const url = new URL(link);
-        // Rimuovi trailing slash tranne per root
-        if (url.pathname !== '/' && url.pathname.endsWith('/')) {
-          url.pathname = url.pathname.slice(0, -1);
-        }
-        // Normalizza hostname rimuovendo www per evitare duplicati
-        url.hostname = url.hostname.replace(/^www\./, '');
-        return url.toString();
-      });
+      // Normalizza tutti gli URL per evitare duplicati
+      const normalizedLinks = validLinks.map(link => this.normalizeUrl(link));
 
       return [...new Set(normalizedLinks)]; // Rimuovi duplicati
     } catch (error) {
@@ -352,12 +580,13 @@ class SEOChecker {
   async crawlSite(baseUrl, maxPages = null) {
     console.log(`\n🕷️  Inizio crawling completo di: ${baseUrl}`);
 
-    // Imposta dominio base
+    // Imposta dominio base e normalizza URL iniziale
     this.baseDomain = new URL(baseUrl).hostname;
     this.maxPages = maxPages;
+    const normalizedBaseUrl = this.normalizeUrl(baseUrl);
 
-    // Inizializza con URL base
-    this.pendingPages.add(baseUrl);
+    // Inizializza con URL base normalizzato
+    this.pendingPages.add(normalizedBaseUrl);
 
     let crawledCount = 0;
 
@@ -383,10 +612,11 @@ class SEOChecker {
         // Scopri nuovi link sulla pagina corrente
         const discoveredLinks = await this.discoverLinksOnPage();
 
-        // Aggiungi nuovi link alla coda
+        // Aggiungi nuovi link normalizzati alla coda
         discoveredLinks.forEach(link => {
-          if (!this.visitedPages.has(link) && !this.pendingPages.has(link)) {
-            this.pendingPages.add(link);
+          const normalizedLink = this.normalizeUrl(link);
+          if (!this.visitedPages.has(normalizedLink) && !this.pendingPages.has(normalizedLink)) {
+            this.pendingPages.add(normalizedLink);
           }
         });
 
@@ -394,12 +624,16 @@ class SEOChecker {
         const headingResult = await this.checkHeadingStructure(currentUrl);
         const metaResult = await this.checkMetaTags(currentUrl);
         const pageSizeResult = await this.checkPageSize(currentUrl);
+        const faviconResult = await this.checkFavicon(currentUrl);
+        const emailResult = await this.checkEmailExposure(currentUrl);
 
         this.results.push({
           url: currentUrl,
           heading: headingResult,
           meta: metaResult,
           pageSize: pageSizeResult,
+          favicon: faviconResult,
+          email: emailResult,
           timestamp: new Date().toISOString()
         });
 
@@ -409,7 +643,7 @@ class SEOChecker {
         console.log(`   📊 Pagine rimanenti: ${this.pendingPages.size}`);
 
         // Pausa tra richieste per non sovraccaricare il server
-        await this.page.waitForTimeout(1000);
+        await this.page.waitForTimeout(500);
 
       } catch (error) {
         console.error(`   ❌ Errore su ${currentUrl}: ${error.message}`);
@@ -519,18 +753,19 @@ class SEOChecker {
     console.log(`   📰 Articoli: ${linksByType.article.length}`);
     console.log(`   📄 Pagine: ${linksByType.page.length}`);
 
-    // Prioritizza le categorie nel controllo
-    const prioritizedPages = [baseUrl];
+    // Prioritizza le categorie nel controllo (normalizza URL base)
+    const normalizedBaseUrl = this.normalizeUrl(baseUrl);
+    const prioritizedPages = [normalizedBaseUrl];
 
-    // Aggiungi tutte le categorie trovate
-    prioritizedPages.push(...linksByType.category.map(link => link.href));
+    // Aggiungi tutte le categorie trovate (normalizzate)
+    prioritizedPages.push(...linksByType.category.map(link => this.normalizeUrl(link.href)));
 
-    // Aggiungi altre pagine fino al limite
+    // Aggiungi altre pagine fino al limite (normalizzate)
     const remainingSlots = maxPages - prioritizedPages.length;
     if (remainingSlots > 0) {
       const otherPages = [
-        ...linksByType.page.map(link => link.href),
-        ...linksByType.article.map(link => link.href)
+        ...linksByType.page.map(link => this.normalizeUrl(link.href)),
+        ...linksByType.article.map(link => this.normalizeUrl(link.href))
       ];
       prioritizedPages.push(...otherPages.slice(0, remainingSlots));
     }
@@ -552,18 +787,26 @@ class SEOChecker {
         // Controlla dimensioni pagina
         const pageSizeResult = await this.checkPageSize(url);
 
+        // Controlla favicon
+        const faviconResult = await this.checkFavicon(url);
+
+        // Controlla email esposte
+        const emailResult = await this.checkEmailExposure(url);
+
         this.results.push({
           url,
           heading: headingResult,
           meta: metaResult,
           pageSize: pageSizeResult,
+          favicon: faviconResult,
+          email: emailResult,
           timestamp: new Date().toISOString()
         });
 
         this.visitedPages.add(url);
 
         // Aspetta un po' tra le richieste
-        await this.page.waitForTimeout(1000);
+        await this.page.waitForTimeout(500);
 
       } catch (error) {
         console.error(`❌ Errore controllando ${url}:`, error.message);
@@ -593,7 +836,8 @@ class SEOChecker {
       const headingIssues = result.heading?.issues || [];
       const metaIssues = result.meta?.issues || [];
       const pageSizeIssues = result.pageSize?.issues || [];
-      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues];
+      const faviconIssues = result.favicon?.issues || [];
+      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues, ...faviconIssues];
 
       totalIssues += allIssues.length;
       if (allIssues.length > 0) pagesWithIssues++;
@@ -620,6 +864,14 @@ class SEOChecker {
 
       if (result.pageSize) {
         console.log(`   📏 Dimensione: ${result.pageSize.pageSizeKB} KB`);
+      }
+
+      if (result.favicon) {
+        console.log(`   🔖 Favicon: ${result.favicon.faviconExists ? '✅ Presente' : '❌ Mancante'} ${result.favicon.faviconFormat ? `(${result.favicon.faviconFormat.toUpperCase()})` : ''}`);
+      }
+
+      if (result.email) {
+        console.log(`   📧 Email: ${result.email.emailCount > 0 ? '⚠️ ' + result.email.emailCount + ' esposte' : '✅ Nessuna esposta'}${result.email.obfuscatedCount > 0 ? `, ${result.email.obfuscatedCount} obfuscate` : ''}`);
       }
 
       if (allIssues.length > 0) {
@@ -713,7 +965,8 @@ class SEOChecker {
       const headingIssues = result.heading?.issues || [];
       const metaIssues = result.meta?.issues || [];
       const pageSizeIssues = result.pageSize?.issues || [];
-      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues];
+      const faviconIssues = result.favicon?.issues || [];
+      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues, ...faviconIssues];
 
       totalIssues += allIssues.length;
       if (allIssues.length > 0) {
@@ -776,7 +1029,8 @@ class SEOChecker {
       const headingIssues = result.heading?.issues || [];
       const metaIssues = result.meta?.issues || [];
       const pageSizeIssues = result.pageSize?.issues || [];
-      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues];
+      const faviconIssues = result.favicon?.issues || [];
+      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues, ...faviconIssues];
       const status = allIssues.length === 0 ? '✅ VALIDA' : '⚠️ PROBLEMI';
 
       const pageTypeEmoji = {
@@ -819,6 +1073,42 @@ class SEOChecker {
         markdown += `**📏 Dimensione Pagina**: ${result.pageSize.pageSizeKB} KB
 
 `;
+      }
+
+      // Favicon
+      if (result.favicon) {
+        markdown += `**🔗 Favicon**: ${result.favicon.faviconExists ? '✅ Presente' : '❌ Mancante'}`;
+        if (result.favicon.faviconFormat) {
+          markdown += ` (${result.favicon.faviconFormat.toUpperCase()})`;
+        }
+        if (result.favicon.faviconSize) {
+          markdown += ` - ${Math.round(result.favicon.faviconSize/1024)} KB`;
+        }
+        markdown += `
+
+`;
+      }
+
+      // Email
+      if (result.email) {
+        markdown += `**📧 Email**: ${result.email.emailCount > 0 ? '⚠️ ' + result.email.emailCount + ' esposte' : '✅ Nessuna esposta'}`;
+        if (result.email.obfuscatedCount > 0) {
+          markdown += `, ${result.email.obfuscatedCount} correttamente obfuscate`;
+        }
+        markdown += `
+
+`;
+
+        if (result.email.suggestions && result.email.suggestions.length > 0) {
+          markdown += `**💡 Suggerimenti Email**:
+`;
+          result.email.suggestions.forEach(suggestion => {
+            markdown += `- ${suggestion}
+`;
+          });
+          markdown += `
+`;
+        }
       }
 
       // Problemi trovati
@@ -888,6 +1178,16 @@ class SEOChecker {
 - ✅ Sequenza logica: H1 → H2 → H3 (no salti)
 - ✅ Utilizzare per strutturare il contenuto
 
+### Favicon
+- ✅ Deve essere presente e accessibile
+- ✅ Formato consigliato: ICO o PNG
+- ✅ Dimensione tipica: 16x16, 32x32 o 48x48 pixel
+
+### Email
+- ✅ Non pubblicare email in chiaro nel testo
+- ✅ Usare obfuscamento: info[@]esempio.com
+- ✅ Utilizzare form di contatto quando possibile
+
 ---
 
 *Report generato automaticamente da SEO Checker con Playwright*
@@ -921,7 +1221,8 @@ class SEOChecker {
       const headingIssues = result.heading?.issues || [];
       const metaIssues = result.meta?.issues || [];
       const pageSizeIssues = result.pageSize?.issues || [];
-      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues];
+      const faviconIssues = result.favicon?.issues || [];
+      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues, ...faviconIssues];
 
       totalIssues += allIssues.length;
       if (allIssues.length > 0) {
@@ -1294,7 +1595,9 @@ class SEOChecker {
           const headingIssues = result.heading?.issues || [];
           const metaIssues = result.meta?.issues || [];
           const pageSizeIssues = result.pageSize?.issues || [];
-          const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues];
+          const faviconIssues = result.favicon?.issues || [];
+          const emailIssues = result.email?.issues || [];
+          const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues, ...faviconIssues, ...emailIssues];
           const statusClass = allIssues.length === 0 ? 'status-success' : 'status-warning';
 
           return `
@@ -1322,16 +1625,33 @@ class SEOChecker {
                       </div>
                   </div>` : ''}
 
-                  ${result.pageSize ? `
                   <div class="meta-info">
+                      ${result.pageSize ? `
                       <div class="meta-item">
                           <h4>📏 Dimensione Pagina</h4>
                           <div class="meta-value">
                               ${result.pageSize.pageSizeKB} KB
                               ${result.pageSize.pageSizeKB > 200 ? '<span style="color: #dc3545; font-weight: bold;"> (⚠️ Troppo pesante)</span>' : '<span style="color: #28a745;"> (✅ OK)</span>'}
                           </div>
-                      </div>
-                  </div>` : ''}
+                      </div>` : ''}
+                      ${result.favicon ? `
+                      <div class="meta-item">
+                          <h4>🔗 Favicon</h4>
+                          <div class="meta-value">
+                              ${result.favicon.faviconExists ? '✅ Presente' : '❌ Mancante'}
+                              ${result.favicon.faviconFormat ? ` (${result.favicon.faviconFormat.toUpperCase()})` : ''}
+                              ${result.favicon.faviconSize ? `<br><small>${Math.round(result.favicon.faviconSize/1024)} KB</small>` : ''}
+                          </div>
+                      </div>` : ''}
+                      ${result.email ? `
+                      <div class="meta-item">
+                          <h4>📧 Email</h4>
+                          <div class="meta-value">
+                              ${result.email.emailCount > 0 ? '⚠️ ' + result.email.emailCount + ' esposte' : '✅ Nessuna esposta'}
+                              ${result.email.obfuscatedCount > 0 ? `<br><small>✅ ${result.email.obfuscatedCount} correttamente obfuscate</small>` : ''}
+                          </div>
+                      </div>` : ''}
+                  </div>
 
                   ${result.heading && result.heading.headings.length > 0 ? `
                   <div class="headings-list">
@@ -1409,6 +1729,24 @@ class SEOChecker {
                     <li>Utilizzare per strutturare il contenuto</li>
                 </ul>
             </div>
+
+            <div class="rec-section">
+                <h3>Favicon</h3>
+                <ul class="rec-list">
+                    <li>Deve essere presente e accessibile</li>
+                    <li>Formato consigliato: ICO o PNG</li>
+                    <li>Dimensione tipica: 16x16, 32x32 o 48x48 pixel</li>
+                </ul>
+            </div>
+
+            <div class="rec-section">
+                <h3>Email</h3>
+                <ul class="rec-list">
+                    <li>Non pubblicare email in chiaro nel testo</li>
+                    <li>Usare obfuscamento: info[@]esempio.com</li>
+                    <li>Utilizzare form di contatto quando possibile</li>
+                </ul>
+            </div>
         </div>
 
         <div class="footer">
@@ -1418,22 +1756,210 @@ class SEOChecker {
 </body>
 </html>`;
 
-    // Salva il file
-    const filepath = path.join(process.cwd(), filename);
-    fs.writeFileSync(filepath, html, 'utf8');
+// Salva il file
+const filepath = path.join(process.cwd(), filename);
+fs.writeFileSync(filepath, html, 'utf8');
 
-    console.log(`\n📄 Report HTML salvato: ${filepath}`);
-    return filepath;
+console.log(`\n📄 Report HTML salvato: ${filepath}`);
+return filepath;
+}
+
+generateJSONReport(filename = null) {
+const endTime = new Date();
+const duration = Math.round((endTime - this.startTime) / 1000);
+
+if (!filename) {
+  const timestamp = endTime.toISOString().slice(0, 19).replace(/[T:]/g, '-');
+  filename = `seo-report-${timestamp}.json`;
+}
+
+// Calcola statistiche
+const stats = {
+  totalPages: this.results.length,
+  pagesWithErrors: 0,
+  pagesWithIssues: 0,
+  pagesWithoutIssues: 0,
+  totalIssues: 0,
+  pageTypes: {
+    homepage: 0,
+    category: 0,
+    article: 0,
+    page: 0
+  },
+  checks: {
+    heading: { passed: 0, failed: 0 },
+    meta: { passed: 0, failed: 0 },
+    pageSize: { passed: 0, failed: 0 },
+    favicon: { passed: 0, failed: 0 },
+    email: { passed: 0, failed: 0 }
+  }
+};
+
+// Trova duplicati
+const duplicateTitles = Array.from(this.duplicateTitles.entries())
+  .filter(([title, urls]) => urls.length > 1)
+  .map(([title, urls]) => ({ title, urls }));
+
+const duplicateDescriptions = Array.from(this.duplicateDescriptions.entries())
+  .filter(([desc, urls]) => urls.length > 1)
+  .map(([description, urls]) => ({ description, urls }));
+
+// Processa i risultati delle pagine
+const pages = this.results.map(result => {
+  if (result.error) {
+    stats.pagesWithErrors++;
+    return {
+      url: result.url,
+      error: result.error,
+      timestamp: result.timestamp,
+      status: 'error'
+    };
   }
 
-  async close() {
-    if (this.browser) {
-      await this.browser.close();
-    }
-    if (this.context) {
-      await this.context.close();
-    }
+  // Conta per tipo di pagina
+  if (result.meta?.pageType) {
+    stats.pageTypes[result.meta.pageType]++;
   }
+
+  // Aggrega tutti i problemi
+  const headingIssues = result.heading?.issues || [];
+  const metaIssues = result.meta?.issues || [];
+  const pageSizeIssues = result.pageSize?.issues || [];
+  const faviconIssues = result.favicon?.issues || [];
+  const emailIssues = result.email?.issues || [];
+  const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues, ...faviconIssues, ...emailIssues];
+
+  stats.totalIssues += allIssues.length;
+
+  if (allIssues.length > 0) {
+    stats.pagesWithIssues++;
+  } else {
+    stats.pagesWithoutIssues++;
+  }
+
+  // Aggiorna statistiche per tipo di check
+  stats.checks.heading[result.heading?.valid ? 'passed' : 'failed']++;
+  stats.checks.meta[result.meta?.valid ? 'passed' : 'failed']++;
+  stats.checks.pageSize[result.pageSize?.valid ? 'passed' : 'failed']++;
+  stats.checks.favicon[result.favicon?.valid ? 'passed' : 'failed']++;
+  stats.checks.email[result.email?.valid ? 'passed' : 'failed']++;
+
+  return {
+    url: result.url,
+    pageType: result.meta?.pageType || 'unknown',
+    status: allIssues.length === 0 ? 'valid' : 'issues',
+    timestamp: result.timestamp,
+    checks: {
+      heading: {
+        valid: result.heading?.valid || false,
+        structure: result.heading?.headings || [],
+        issues: headingIssues
+      },
+      meta: {
+        valid: result.meta?.valid || false,
+        title: {
+          content: result.meta?.title || '',
+          length: result.meta?.titleLength || 0
+        },
+        description: {
+          content: result.meta?.description || '',
+          length: result.meta?.descriptionLength || 0
+        },
+        issues: metaIssues
+      },
+      pageSize: {
+        valid: result.pageSize?.valid || false,
+        sizeKB: result.pageSize?.pageSizeKB || 0,
+        sizeBytes: result.pageSize?.pageSize || 0,
+        issues: pageSizeIssues
+      },
+      favicon: {
+        valid: result.favicon?.valid || false,
+        exists: result.favicon?.faviconExists || false,
+        format: result.favicon?.faviconFormat || null,
+        url: result.favicon?.faviconUrl || null,
+        sizeBytes: result.favicon?.faviconSize || null,
+        issues: faviconIssues
+      },
+      email: {
+        valid: result.email?.valid || false,
+        exposedCount: result.email?.emailCount || 0,
+        obfuscatedCount: result.email?.obfuscatedCount || 0,
+        exposedEmails: result.email?.exposedEmails || [],
+        obfuscatedEmails: result.email?.obfuscatedEmails || [],
+        suggestions: result.email?.suggestions || [],
+        issues: emailIssues
+      }
+    },
+    issues: allIssues
+  };
+});
+
+// Struttura finale del JSON
+const jsonReport = {
+  reportInfo: {
+    generatedAt: endTime.toISOString(),
+    generatedAtLocal: endTime.toLocaleString('it-IT'),
+    duration: duration,
+    durationFormatted: `${duration} secondi`,
+    tool: 'SEO Checker with Playwright',
+    version: '1.0.0'
+  },
+  summary: {
+    statistics: stats,
+    duplicates: {
+      titles: duplicateTitles,
+      descriptions: duplicateDescriptions,
+      totalDuplicateTitles: duplicateTitles.length,
+      totalDuplicateDescriptions: duplicateDescriptions.length
+    }
+  },
+  pages: pages,
+  recommendations: {
+    title: [
+      'Lunghezza ottimale: 30-60 caratteri',
+      'Ogni pagina deve avere un title unico',
+      'Includere parole chiave principali'
+    ],
+    metaDescription: [
+      'Lunghezza ottimale: 70-155 caratteri',
+      'Ogni pagina deve avere una description unica',
+      'Deve essere descrittiva e invitante al click'
+    ],
+    heading: [
+      'Una sola H1 per pagina',
+      'Sequenza logica: H1 → H2 → H3 (no salti)',
+      'Utilizzare per strutturare il contenuto'
+    ],
+    favicon: [
+      'Deve essere presente e accessibile',
+      'Formato consigliato: ICO o PNG',
+      'Dimensione tipica: 16x16, 32x32 o 48x48 pixel'
+    ],
+    email: [
+      'Non pubblicare email in chiaro nel testo',
+      'Usare obfuscamento: info[@]esempio.com',
+      'Utilizzare form di contatto quando possibile'
+    ]
+  }
+};
+
+// Salva il file
+const filepath = path.join(process.cwd(), filename);
+fs.writeFileSync(filepath, JSON.stringify(jsonReport, null, 2), 'utf8');
+
+console.log(`\n📄 Report JSON salvato: ${filepath}`);
+return filepath;
+}
+
+async close() {
+  if (this.browser) {
+    await this.browser.close();
+  }
+  if (this.context) {
+    await this.context.close();
+  }
+}
 }
 
 // Esempio di utilizzo
@@ -1458,7 +1984,9 @@ async function runSEOCheck() {
 }
 
 // Esporta per uso come modulo
-module.exports = { SEOChecker };
+module.exports = {
+  SEOChecker
+};
 
 // Esegui se chiamato direttamente
 if (require.main === module) {

@@ -42,15 +42,18 @@ node seo-cli.js <url> [options]
 # Example usage
 node seo-cli.js https://example.com -p 10 -f html
 node seo-cli.js https://example.com --crawl --headless
+node seo-cli.js https://example.com --select-profile
 ```
 
 ### CLI Options
 - `-p, --pages <number>`: Max pages to check (default: 5)
-- `-c, --crawl`: Full site crawling mode
-- `-o, --output <file>`: Report filename
-- `-f, --format <type>`: Report format (html, md, both)
+- `-c, --crawl`: Full site crawling mode (ignores -p)
+- `-o, --output <file>`: Report filename (default: auto-generated)
+- `-f, --format <type>`: Report format (html, md, both) (default: both)
 - `-h, --headless`: Run without browser UI
-- `--no-profile`: Don't use Chrome profile
+- `--no-profile`: Don't use Chrome profile (uses Chromium instead of Chrome)
+- `--select-profile`: Show list of available Chrome profiles for user selection
+- `--help`: Show help message
 
 ### Example Scripts
 ```bash
@@ -80,6 +83,9 @@ node example-full-crawl.js
 - 1-second timeout between pages to avoid server overload
 - Title length validation: 30-60 characters
 - Description length validation: 70-155 characters
+- Uses Chrome profile by default (can be disabled with `--no-profile`)
+- Profile selection available with `--select-profile` flag (shows interactive list)
+- Supports both Chrome and Chromium browsers
 
 ## Testing
 

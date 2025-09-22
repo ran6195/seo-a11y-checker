@@ -97,3 +97,8 @@ chrome-profile/
 test-results/
 playwright-report/
 playwright/.cache/
+
+# reports
+*.html
+*.json
+*.xml
