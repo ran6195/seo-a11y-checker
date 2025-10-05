@@ -1,4 +1,6 @@
-const { SEOChecker } = require('./seo-checker');
+const {
+  SEOChecker
+} = require('../seo-checker');
 const path = require('path');
 const os = require('os');
 
@@ -97,4 +99,8 @@ if (require.main === module) {
   // testMultipleSites();
 }
 
-module.exports = { fullSiteCrawl, limitedCrawl, testMultipleSites };
+module.exports = {
+  fullSiteCrawl,
+  limitedCrawl,
+  testMultipleSites
+};

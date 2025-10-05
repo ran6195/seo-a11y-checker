@@ -1,6 +1,6 @@
 const {
   SEOChecker
-} = require('./seo-checker');
+} = require('../seo-checker');
 const path = require('path');
 const os = require('os');
 

@@ -348,6 +348,193 @@ class SEOChecker {
     };
   }
 
+  async checkLegalSections(baseUrl) {
+    console.log(`\n🔍 Controllo sezioni legali per: ${baseUrl}`);
+
+    const legalSections = {
+      privacy: { found: false, url: null, linkText: null },
+      terms: { found: false, url: null, linkText: null },
+      cookies: { found: false, url: null, linkText: null }
+    };
+
+    // Pattern di ricerca per le sezioni legali
+    const legalPatterns = {
+      privacy: [
+        'privacy', 'privacidad', 'riservatezza', 'protezione dati', 'data protection',
+        'gdpr', 'informativa', 'trattamento dati'
+      ],
+      terms: [
+        'terms', 'termini', 'condizioni', 'conditions', 'uso', 'servizio', 'service',
+        'contratto', 'agreement', 'legal', 'note legali'
+      ],
+      cookies: [
+        'cookie', 'cookies', 'biscotti', 'tracciamento', 'tracking'
+      ]
+    };
+
+    // Lista di pagine comuni da controllare
+    const commonPages = [
+      baseUrl,
+      `${baseUrl}/privacy`,
+      `${baseUrl}/privacy-policy`,
+      `${baseUrl}/informativa-privacy`,
+      `${baseUrl}/terms`,
+      `${baseUrl}/terms-of-service`,
+      `${baseUrl}/termini-condizioni`,
+      `${baseUrl}/cookies`,
+      `${baseUrl}/cookie-policy`,
+      `${baseUrl}/legal`,
+      `${baseUrl}/note-legali`
+    ];
+
+    // Controlla ogni pagina comune
+    for (const pageUrl of commonPages) {
+      try {
+        const response = await this.page.goto(pageUrl, {
+          waitUntil: 'networkidle',
+          timeout: 15000
+        });
+
+        if (response && response.status() === 200) {
+          // Analizza il contenuto della pagina
+          const pageAnalysis = await this.page.evaluate((patterns) => {
+            const pageText = document.body.innerText.toLowerCase();
+            const pageTitle = document.title.toLowerCase();
+            const pageUrl = window.location.href.toLowerCase();
+
+            const analysis = {
+              privacy: false,
+              terms: false,
+              cookies: false
+            };
+
+            // Controlla privacy
+            if (patterns.privacy.some(term =>
+              pageText.includes(term) || pageTitle.includes(term) || pageUrl.includes(term)
+            )) {
+              analysis.privacy = true;
+            }
+
+            // Controlla terms
+            if (patterns.terms.some(term =>
+              pageText.includes(term) || pageTitle.includes(term) || pageUrl.includes(term)
+            )) {
+              analysis.terms = true;
+            }
+
+            // Controlla cookies
+            if (patterns.cookies.some(term =>
+              pageText.includes(term) || pageTitle.includes(term) || pageUrl.includes(term)
+            )) {
+              analysis.cookies = true;
+            }
+
+            return analysis;
+          }, legalPatterns);
+
+          // Aggiorna i risultati
+          if (pageAnalysis.privacy && !legalSections.privacy.found) {
+            legalSections.privacy = { found: true, url: pageUrl, linkText: null };
+          }
+          if (pageAnalysis.terms && !legalSections.terms.found) {
+            legalSections.terms = { found: true, url: pageUrl, linkText: null };
+          }
+          if (pageAnalysis.cookies && !legalSections.cookies.found) {
+            legalSections.cookies = { found: true, url: pageUrl, linkText: null };
+          }
+        }
+      } catch (error) {
+        // Ignora errori 404 o di navigazione per pagine che potrebbero non esistere
+        continue;
+      }
+    }
+
+    // Se non trovate nelle pagine dirette, cerca link nel sito
+    await this.page.goto(baseUrl);
+
+    const foundLinks = await this.page.evaluate((patterns) => {
+      const links = Array.from(document.querySelectorAll('a[href]'));
+      const found = {
+        privacy: [],
+        terms: [],
+        cookies: []
+      };
+
+      links.forEach(link => {
+        const linkText = link.textContent.toLowerCase().trim();
+        const linkHref = link.href.toLowerCase();
+
+        // Controlla privacy
+        if (patterns.privacy.some(term => linkText.includes(term) || linkHref.includes(term))) {
+          found.privacy.push({
+            url: link.href,
+            text: link.textContent.trim()
+          });
+        }
+
+        // Controlla terms
+        if (patterns.terms.some(term => linkText.includes(term) || linkHref.includes(term))) {
+          found.terms.push({
+            url: link.href,
+            text: link.textContent.trim()
+          });
+        }
+
+        // Controlla cookies
+        if (patterns.cookies.some(term => linkText.includes(term) || linkHref.includes(term))) {
+          found.cookies.push({
+            url: link.href,
+            text: link.textContent.trim()
+          });
+        }
+      });
+
+      return found;
+    }, legalPatterns);
+
+    // Aggiorna i risultati con i link trovati
+    if (!legalSections.privacy.found && foundLinks.privacy.length > 0) {
+      const bestMatch = foundLinks.privacy[0];
+      legalSections.privacy = { found: true, url: bestMatch.url, linkText: bestMatch.text };
+    }
+    if (!legalSections.terms.found && foundLinks.terms.length > 0) {
+      const bestMatch = foundLinks.terms[0];
+      legalSections.terms = { found: true, url: bestMatch.url, linkText: bestMatch.text };
+    }
+    if (!legalSections.cookies.found && foundLinks.cookies.length > 0) {
+      const bestMatch = foundLinks.cookies[0];
+      legalSections.cookies = { found: true, url: bestMatch.url, linkText: bestMatch.text };
+    }
+
+    // Genera issues
+    const issues = [];
+    if (!legalSections.privacy.found) {
+      issues.push('❌ Manca sezione Privacy Policy/Informativa Privacy');
+    }
+    if (!legalSections.terms.found) {
+      issues.push('❌ Mancano Termini e Condizioni d\'uso');
+    }
+    if (!legalSections.cookies.found) {
+      issues.push('❌ Manca Cookie Policy');
+    }
+
+    const foundCount = Object.values(legalSections).filter(section => section.found).length;
+
+    console.log(`   📋 Sezioni legali trovate: ${foundCount}/3`);
+    if (legalSections.privacy.found) console.log(`      ✅ Privacy: ${legalSections.privacy.url}`);
+    if (legalSections.terms.found) console.log(`      ✅ Terms: ${legalSections.terms.url}`);
+    if (legalSections.cookies.found) console.log(`      ✅ Cookies: ${legalSections.cookies.url}`);
+
+    return {
+      baseUrl,
+      sections: legalSections,
+      foundCount,
+      totalSections: 3,
+      issues,
+      valid: issues.length === 0
+    };
+  }
+
   async checkMetaTags(url) {
 
     await this.page.goto(url);
@@ -585,6 +772,11 @@ class SEOChecker {
     this.maxPages = maxPages;
     const normalizedBaseUrl = this.normalizeUrl(baseUrl);
 
+    // Controllo sezioni legali (solo durante crawling completo)
+    console.log('\n🏛️  CONTROLLO SEZIONI LEGALI');
+    console.log('='.repeat(40));
+    const legalResult = await this.checkLegalSections(baseUrl);
+
     // Inizializza con URL base normalizzato
     this.pendingPages.add(normalizedBaseUrl);
 
@@ -634,6 +826,7 @@ class SEOChecker {
           pageSize: pageSizeResult,
           favicon: faviconResult,
           email: emailResult,
+          legal: crawledCount === 1 ? legalResult : null, // Includi solo per la prima pagina
           timestamp: new Date().toISOString()
         });
 
@@ -651,6 +844,7 @@ class SEOChecker {
         this.results.push({
           url: currentUrl,
           error: error.message,
+          legal: crawledCount === 1 ? legalResult : null,
           timestamp: new Date().toISOString()
         });
 
@@ -671,6 +865,14 @@ class SEOChecker {
     if (maxPages && crawledCount >= maxPages) {
       console.log(`🛑 Limite raggiunto (${maxPages} pagine)`);
     }
+
+    // Riepilogo sezioni legali
+    console.log(`\n🏛️  RIEPILOGO SEZIONI LEGALI`);
+    console.log(`=`.repeat(40));
+    console.log(`📋 Sezioni trovate: ${legalResult.foundCount}/3`);
+    console.log(`   ${legalResult.sections.privacy.found ? '✅' : '❌'} Privacy Policy`);
+    console.log(`   ${legalResult.sections.terms.found ? '✅' : '❌'} Termini e Condizioni`);
+    console.log(`   ${legalResult.sections.cookies.found ? '✅' : '❌'} Cookie Policy`);
   }
 
   async navigateAndCheck(baseUrl, maxPages = 10) {
@@ -837,7 +1039,8 @@ class SEOChecker {
       const metaIssues = result.meta?.issues || [];
       const pageSizeIssues = result.pageSize?.issues || [];
       const faviconIssues = result.favicon?.issues || [];
-      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues, ...faviconIssues];
+      const legalIssues = result.legal?.issues || [];
+      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues, ...faviconIssues, ...legalIssues];
 
       totalIssues += allIssues.length;
       if (allIssues.length > 0) pagesWithIssues++;
@@ -872,6 +1075,10 @@ class SEOChecker {
 
       if (result.email) {
         console.log(`   📧 Email: ${result.email.emailCount > 0 ? '⚠️ ' + result.email.emailCount + ' esposte' : '✅ Nessuna esposta'}${result.email.obfuscatedCount > 0 ? `, ${result.email.obfuscatedCount} obfuscate` : ''}`);
+      }
+
+      if (result.legal) {
+        console.log(`   🏛️ Sezioni legali: ${result.legal.foundCount}/3 trovate`);
       }
 
       if (allIssues.length > 0) {
@@ -966,7 +1173,8 @@ class SEOChecker {
       const metaIssues = result.meta?.issues || [];
       const pageSizeIssues = result.pageSize?.issues || [];
       const faviconIssues = result.favicon?.issues || [];
-      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues, ...faviconIssues];
+      const legalIssues = result.legal?.issues || [];
+      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues, ...faviconIssues, ...legalIssues];
 
       totalIssues += allIssues.length;
       if (allIssues.length > 0) {
@@ -1030,7 +1238,8 @@ class SEOChecker {
       const metaIssues = result.meta?.issues || [];
       const pageSizeIssues = result.pageSize?.issues || [];
       const faviconIssues = result.favicon?.issues || [];
-      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues, ...faviconIssues];
+      const legalIssues = result.legal?.issues || [];
+      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues, ...faviconIssues, ...legalIssues];
       const status = allIssues.length === 0 ? '✅ VALIDA' : '⚠️ PROBLEMI';
 
       const pageTypeEmoji = {
@@ -1111,6 +1320,16 @@ class SEOChecker {
         }
       }
 
+      // Sezioni legali
+      if (result.legal) {
+        markdown += `**🏛️ Sezioni Legali**: ${result.legal.foundCount}/3 trovate
+- Privacy Policy: ${result.legal.sections.privacy.found ? '✅ Presente' : '❌ Mancante'}${result.legal.sections.privacy.url ? ` (${result.legal.sections.privacy.url})` : ''}
+- Termini e Condizioni: ${result.legal.sections.terms.found ? '✅ Presenti' : '❌ Mancanti'}${result.legal.sections.terms.url ? ` (${result.legal.sections.terms.url})` : ''}
+- Cookie Policy: ${result.legal.sections.cookies.found ? '✅ Presente' : '❌ Mancante'}${result.legal.sections.cookies.url ? ` (${result.legal.sections.cookies.url})` : ''}
+
+`;
+      }
+
       // Problemi trovati
       if (allIssues.length > 0) {
         markdown += `**🚨 Problemi riscontrati**:
@@ -1188,6 +1407,12 @@ class SEOChecker {
 - ✅ Usare obfuscamento: info[@]esempio.com
 - ✅ Utilizzare form di contatto quando possibile
 
+### Sezioni Legali
+- ✅ Deve essere presente una Privacy Policy/Informativa Privacy
+- ✅ Devono essere presenti Termini e Condizioni d'uso
+- ✅ Deve essere presente una Cookie Policy
+- ✅ Le sezioni devono essere facilmente accessibili (link nel footer)
+
 ---
 
 *Report generato automaticamente da SEO Checker con Playwright*
@@ -1222,7 +1447,8 @@ class SEOChecker {
       const metaIssues = result.meta?.issues || [];
       const pageSizeIssues = result.pageSize?.issues || [];
       const faviconIssues = result.favicon?.issues || [];
-      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues, ...faviconIssues];
+      const legalIssues = result.legal?.issues || [];
+      const allIssues = [...headingIssues, ...metaIssues, ...pageSizeIssues, ...faviconIssues, ...legalIssues];
 
       totalIssues += allIssues.length;
       if (allIssues.length > 0) {
@@ -1651,6 +1877,16 @@ class SEOChecker {
                               ${result.email.obfuscatedCount > 0 ? `<br><small>✅ ${result.email.obfuscatedCount} correttamente obfuscate</small>` : ''}
                           </div>
                       </div>` : ''}
+                      ${result.legal ? `
+                      <div class="meta-item">
+                          <h4>🏛️ Sezioni Legali</h4>
+                          <div class="meta-value">
+                              ${result.legal.foundCount}/3 trovate
+                              <br><small>Privacy: ${result.legal.sections.privacy.found ? '✅' : '❌'}</small>
+                              <br><small>Terms: ${result.legal.sections.terms.found ? '✅' : '❌'}</small>
+                              <br><small>Cookies: ${result.legal.sections.cookies.found ? '✅' : '❌'}</small>
+                          </div>
+                      </div>` : ''}
                   </div>
 
                   ${result.heading && result.heading.headings.length > 0 ? `
@@ -1745,6 +1981,16 @@ class SEOChecker {
                     <li>Non pubblicare email in chiaro nel testo</li>
                     <li>Usare obfuscamento: info[@]esempio.com</li>
                     <li>Utilizzare form di contatto quando possibile</li>
+                </ul>
+            </div>
+
+            <div class="rec-section">
+                <h3>Sezioni Legali</h3>
+                <ul class="rec-list">
+                    <li>Deve essere presente una Privacy Policy/Informativa Privacy</li>
+                    <li>Devono essere presenti Termini e Condizioni d'uso</li>
+                    <li>Deve essere presente una Cookie Policy</li>
+                    <li>Le sezioni devono essere facilmente accessibili (link nel footer)</li>
                 </ul>
             </div>
         </div>
@@ -1889,7 +2135,30 @@ const pages = this.results.map(result => {
         obfuscatedEmails: result.email?.obfuscatedEmails || [],
         suggestions: result.email?.suggestions || [],
         issues: emailIssues
-      }
+      },
+      legal: result.legal ? {
+        valid: result.legal.valid || false,
+        foundCount: result.legal.foundCount || 0,
+        totalSections: result.legal.totalSections || 3,
+        sections: {
+          privacy: {
+            found: result.legal.sections?.privacy?.found || false,
+            url: result.legal.sections?.privacy?.url || null,
+            linkText: result.legal.sections?.privacy?.linkText || null
+          },
+          terms: {
+            found: result.legal.sections?.terms?.found || false,
+            url: result.legal.sections?.terms?.url || null,
+            linkText: result.legal.sections?.terms?.linkText || null
+          },
+          cookies: {
+            found: result.legal.sections?.cookies?.found || false,
+            url: result.legal.sections?.cookies?.url || null,
+            linkText: result.legal.sections?.cookies?.linkText || null
+          }
+        },
+        issues: result.legal.issues || []
+      } : null
     },
     issues: allIssues
   };
@@ -1940,6 +2209,12 @@ const jsonReport = {
       'Non pubblicare email in chiaro nel testo',
       'Usare obfuscamento: info[@]esempio.com',
       'Utilizzare form di contatto quando possibile'
+    ],
+    legal: [
+      'Deve essere presente una Privacy Policy/Informativa Privacy',
+      'Devono essere presenti Termini e Condizioni d\'uso',
+      'Deve essere presente una Cookie Policy',
+      'Le sezioni devono essere facilmente accessibili (link nel footer)'
     ]
   }
 };

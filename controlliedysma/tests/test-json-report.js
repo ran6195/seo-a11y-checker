@@ -1,4 +1,6 @@
-const { SEOChecker } = require('./seo-checker.js');
+const {
+  SEOChecker
+} = require('../seo-checker.js');
 
 // Test del report JSON
 async function testJSONReport() {
@@ -7,18 +9,30 @@ async function testJSONReport() {
   try {
     console.log('🧪 Test generazione report JSON\n');
 
-    await checker.init({ headless: true });
+    await checker.init({
+      headless: true
+    });
 
     // Simula alcuni risultati per il test
-    const testResults = [
-      {
+    const testResults = [{
         url: 'https://example.com',
         heading: {
           valid: true,
-          headings: [
-            { tag: 'h1', text: 'Titolo Principale', level: 1 },
-            { tag: 'h2', text: 'Sezione 1', level: 2 },
-            { tag: 'h3', text: 'Sottosezione 1.1', level: 3 }
+          headings: [{
+              tag: 'h1',
+              text: 'Titolo Principale',
+              level: 1
+            },
+            {
+              tag: 'h2',
+              text: 'Sezione 1',
+              level: 2
+            },
+            {
+              tag: 'h3',
+              text: 'Sottosezione 1.1',
+              level: 3
+            }
           ],
           issues: []
         },
@@ -62,9 +76,11 @@ async function testJSONReport() {
         url: 'https://example.com/about',
         heading: {
           valid: false,
-          headings: [
-            { tag: 'h2', text: 'Chi Siamo', level: 2 }
-          ],
+          headings: [{
+            tag: 'h2',
+            text: 'Chi Siamo',
+            level: 2
+          }],
           issues: ['❌ Nessun H1 trovato']
         },
         meta: {
@@ -182,4 +198,6 @@ if (require.main === module) {
   testJSONReport().catch(console.error);
 }
 
-module.exports = { testJSONReport };
+module.exports = {
+  testJSONReport
+};

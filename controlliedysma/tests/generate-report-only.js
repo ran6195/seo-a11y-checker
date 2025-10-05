@@ -1,4 +1,6 @@
-const { SEOChecker } = require('./seo-checker');
+const {
+  SEOChecker
+} = require('../seo-checker');
 
 async function generateMarkdownReport() {
   const checker = new SEOChecker();
@@ -63,4 +65,7 @@ if (require.main === module) {
   // generateCustomReport('https://tuosito.com', 10, 'report-tuosito.md');
 }
 
-module.exports = { generateMarkdownReport, generateCustomReport };
+module.exports = {
+  generateMarkdownReport,
+  generateCustomReport
+};

@@ -1,6 +1,6 @@
 const {
   SEOChecker
-} = require('./seo-checker');
+} = require('../seo-checker');
 
 async function testSEO() {
   const checker = new SEOChecker();

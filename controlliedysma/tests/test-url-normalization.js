@@ -1,4 +1,6 @@
-const { SEOChecker } = require('./seo-checker.js');
+const {
+  SEOChecker
+} = require('../seo-checker.js');
 
 // Test della normalizzazione URL
 async function testUrlNormalization() {
@@ -77,4 +79,6 @@ if (require.main === module) {
   testUrlNormalization().catch(console.error);
 }
 
-module.exports = { testUrlNormalization };
+module.exports = {
+  testUrlNormalization
+};

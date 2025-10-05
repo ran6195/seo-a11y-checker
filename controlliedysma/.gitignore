@@ -99,6 +99,17 @@ playwright-report/
 playwright/.cache/
 
 # reports
-*.html
+
 *.json
 *.xml
+*.md
+*.html
+*.pdf
+
+reports/
+
+# Archivi
+*.zip
+*.tar.gz
+*.rar
+*.7z
