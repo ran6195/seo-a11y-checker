@@ -520,8 +520,9 @@ class A11yChecker {
 
       const validLinks = links.filter(link => this.isValidUrl(link));
       const normalizedLinks = validLinks.map(link => this.normalizeUrl(link));
+      const uniqueLinks = [...new Set(normalizedLinks)];
 
-      return [...new Set(normalizedLinks)];
+      return uniqueLinks;
     } catch (error) {
       console.warn(`Errore durante scoperta link: ${error.message}`);
       return [];
@@ -543,12 +544,18 @@ class A11yChecker {
       const currentUrl = Array.from(this.pendingPages)[0];
       this.pendingPages.delete(currentUrl);
 
-      if (this.visitedPages.has(currentUrl)) {
+      // Normalizza currentUrl per consistenza
+      const normalizedCurrentUrl = this.normalizeUrl(currentUrl);
+
+      if (this.visitedPages.has(normalizedCurrentUrl)) {
         continue;
       }
 
       crawledCount++;
       console.log(`\n[${crawledCount}${maxPages ? `/${maxPages}` : ''}] 🔍 ${currentUrl}`);
+
+      // Aggiungi subito a visitedPages per evitare duplicati
+      this.visitedPages.add(normalizedCurrentUrl);
 
       try {
         await this.page.goto(currentUrl, {
@@ -567,7 +574,6 @@ class A11yChecker {
 
         const result = await this.checkAccessibility(currentUrl);
         this.results.push(result);
-        this.visitedPages.add(currentUrl);
 
         console.log(`   📊 Score: ${result.analysis.score}% | Violazioni: ${result.analysis.summary.violations}`);
         console.log(`   📋 Pagine rimanenti: ${this.pendingPages.size}`);
@@ -582,8 +588,6 @@ class A11yChecker {
           error: error.message,
           timestamp: new Date().toISOString()
         });
-
-        this.visitedPages.add(currentUrl);
       }
     }
 
@@ -617,12 +621,18 @@ class A11yChecker {
       const currentUrl = Array.from(this.pendingPages)[0];
       this.pendingPages.delete(currentUrl);
 
-      if (this.visitedPages.has(currentUrl)) {
+      // Normalizza currentUrl per consistenza
+      const normalizedCurrentUrl = this.normalizeUrl(currentUrl);
+
+      if (this.visitedPages.has(normalizedCurrentUrl)) {
         continue;
       }
 
       crawledCount++;
       const remaining = maxPages - crawledCount;
+
+      // Aggiungi subito a visitedPages per evitare duplicati
+      this.visitedPages.add(normalizedCurrentUrl);
 
       try {
         await this.page.goto(currentUrl, { waitUntil: 'networkidle', timeout: 30000 });
@@ -637,7 +647,6 @@ class A11yChecker {
 
         const result = await this.checkAccessibility(currentUrl);
         this.results.push(result);
-        this.visitedPages.add(currentUrl);
 
         console.log(`✅ [${crawledCount}/${maxPages}] ${currentUrl} - Score: ${result.analysis.score}% (${remaining} rimanenti, ${this.pendingPages.size} in coda)`);
 
@@ -650,7 +659,6 @@ class A11yChecker {
           error: error.message,
           timestamp: new Date().toISOString()
         });
-        this.visitedPages.add(currentUrl);
       }
     }
 
@@ -751,8 +759,18 @@ class A11yChecker {
     const duration = Math.round((endTime - this.startTime) / 1000);
 
     if (!filename) {
+      // Estrai il nome del sito dalla prima URL
+      let siteName = 'sito';
+      if (this.results.length > 0 && this.results[0].url) {
+        try {
+          const urlObj = new URL(this.results[0].url);
+          siteName = urlObj.hostname.replace(/^www\./, '').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        } catch (e) {
+          // Ignora errori di parsing
+        }
+      }
       const timestamp = endTime.toISOString().slice(0, 19).replace(/[T:]/g, '-');
-      filename = `a11y-report-${timestamp}.md`;
+      filename = `${siteName}_${timestamp}.md`;
     }
 
     let totalViolations = 0;
@@ -947,8 +965,18 @@ class A11yChecker {
     const duration = Math.round((endTime - this.startTime) / 1000);
 
     if (!filename) {
+      // Estrai il nome del sito dalla prima URL
+      let siteName = 'sito';
+      if (this.results.length > 0 && this.results[0].url) {
+        try {
+          const urlObj = new URL(this.results[0].url);
+          siteName = urlObj.hostname.replace(/^www\./, '').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        } catch (e) {
+          // Ignora errori di parsing
+        }
+      }
       const timestamp = endTime.toISOString().slice(0, 19).replace(/[T:]/g, '-');
-      filename = `a11y-report-${timestamp}.html`;
+      filename = `${siteName}_${timestamp}.html`;
     }
 
     let totalViolations = 0;
@@ -1173,8 +1201,18 @@ class A11yChecker {
     const duration = Math.round((endTime - this.startTime) / 1000);
 
     if (!filename) {
+      // Estrai il nome del sito dalla prima URL
+      let siteName = 'sito';
+      if (this.results.length > 0 && this.results[0].url) {
+        try {
+          const urlObj = new URL(this.results[0].url);
+          siteName = urlObj.hostname.replace(/^www\./, '').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        } catch (e) {
+          // Ignora errori di parsing
+        }
+      }
       const timestamp = endTime.toISOString().slice(0, 19).replace(/[T:]/g, '-');
-      filename = `a11y-report-${timestamp}.json`;
+      filename = `${siteName}_${timestamp}.json`;
     }
 
     let totalViolations = 0;
@@ -1705,7 +1743,8 @@ ecc.
 
     // Genera filename
     const sanitizedSiteName = config.siteName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    const filename = `dichiarazione_${sanitizedSiteName}.html`;
+    const timestamp = endTime.toISOString().slice(0, 19).replace(/[T:]/g, '-');
+    const filename = `${sanitizedSiteName}_${timestamp}_dichiarazione.html`;
 
     // Genera HTML
     const html = `<!DOCTYPE html>
@@ -1926,12 +1965,18 @@ Violazioni totali rilevate: <strong>${totalViolations}</strong></p>
     ];
 
     // Determina conformità per ogni criterio
+    // Regole:
+    // - Default: NA (Non Applicabile)
+    // - Se viene trovata una violazione: NS (Non Soddisfatto) e non può più cambiare
+    // - Se viene soddisfatto (testato senza violazioni): S (Soddisfatto)
     const criteriaStatus = {};
+    const criteriaViolated = new Set(); // Criteri che hanno avuto violazioni
+
     allCriteria.forEach(criterion => {
-      criteriaStatus[criterion.en] = 'S'; // Default: Soddisfatto
+      criteriaStatus[criterion.en] = 'NA'; // Default: Non Applicabile
     });
 
-    // Marca come NS i criteri con violazioni
+    // Marca come NS i criteri con violazioni (una volta NS, rimane NS)
     Object.values(violationsByType).forEach(violation => {
       const enCriterion = wcagMapping[violation.id];
       if (enCriterion) {
@@ -1940,9 +1985,31 @@ Violazioni totali rilevate: <strong>${totalViolations}</strong></p>
           const trimmedEn = en.trim();
           if (criteriaStatus.hasOwnProperty(trimmedEn)) {
             criteriaStatus[trimmedEn] = 'NS';
+            criteriaViolated.add(trimmedEn);
           }
         });
       }
+    });
+
+    // Marca come S (Soddisfatto) i criteri testati ma senza violazioni
+    // Solo se non sono stati mai marcati come NS
+    this.results.forEach(result => {
+      if (result.error || !result.axeResults.passes) return;
+
+      result.axeResults.passes.forEach(pass => {
+        const enCriterion = wcagMapping[pass.id];
+        if (enCriterion) {
+          enCriterion.split(',').forEach(en => {
+            const trimmedEn = en.trim();
+            // Passa a S solo se è ancora NA (non è mai stato violato)
+            if (criteriaStatus.hasOwnProperty(trimmedEn) &&
+                criteriaStatus[trimmedEn] === 'NA' &&
+                !criteriaViolated.has(trimmedEn)) {
+              criteriaStatus[trimmedEn] = 'S';
+            }
+          });
+        }
+      });
     });
 
     // Genera le righe della tabella
@@ -2018,9 +2085,9 @@ Violazioni totali rilevate: <strong>${totalViolations}</strong></p>
         <h2 style="padding-top: 200px; padding-bottom: 500px; text-align: center;">ALLEGATO 2 ALLE LINEE GUIDA SULL'ACCESSIBILITÀ DEGLI STRUMENTI INFORMATICI
     MODELLO DI AUTOVALUTAZIONE PER <a href="${config.siteUrl}">${config.siteName.toUpperCase()}</a></h2>
 
-        <p>Il modello di autovalutazione di accessibilità è stato realizzato in conformità alla Legge "Disposizioni per favorire e semplificare l'accesso degli utenti e, in particolare, delle persone con disabilità agli strumenti informatici".</p>
-
         <hr class="page-break" aria-hidden="true">
+
+        <p>Il modello di autovalutazione di accessibilità è stato realizzato in conformità alla Legge "Disposizioni per favorire e semplificare l'accesso degli utenti e, in particolare, delle persone con disabilità agli strumenti informatici".</p>
 
         <section>
             <h3>Modello di autovalutazione</h3>
@@ -2067,9 +2134,9 @@ ${tableRows}
 </html>`;
 
     // Salva il file
-    const timestamp = new Date().toISOString().split('T')[0];
-    const siteNameClean = config.siteName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
-    const filename = `allegato2_${siteNameClean}_${timestamp}.html`;
+    const timestamp = endTime.toISOString().slice(0, 19).replace(/[T:]/g, '-');
+    const siteNameClean = config.siteName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const filename = `${siteNameClean}_${timestamp}_allegato2.html`;
     const filepath = path.join(process.cwd(), filename);
 
     fs.writeFileSync(filepath, html, 'utf8');

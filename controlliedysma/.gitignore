@@ -98,15 +98,21 @@ test-results/
 playwright-report/
 playwright/.cache/
 
-# reports
+# Report generati (file con timestamp nel nome)
+# Pattern: seo-report-YYYY-MM-DD-* oppure {dominio}_YYYY-MM-DD-*
+*-20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.html
+*-20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.md
+*-20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.json
+*_20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.html
+*_20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.pdf
 
-*.json
-*.xml
-*.md
-*.html
-*.pdf
+# File di test temporanei
+test-report.json
 
+# Cartelle di report archiviati
 reports/
+documenti/
+gruppo_zatti/
 
 # Archivi
 *.zip

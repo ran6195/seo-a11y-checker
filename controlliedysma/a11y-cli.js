@@ -167,6 +167,7 @@ Opzioni:
   -f, --format <tipo>    Formato report: html, md, json, dichiarazione, allegato2, all (default: all)
   -h, --headless        Esegui in modalità headless (senza aprire browser)
   --no-profile          Non usare profilo Chrome (usa Chromium)
+  --profile <path>      Percorso specifico profilo Chrome da usare
   --select-profile      Mostra lista profili Chrome disponibili per selezione
   --help                Mostra questo messaggio
 
@@ -216,6 +217,7 @@ function parseArgs() {
     headless: false,
     useProfile: true,
     selectProfile: false,
+    profilePath: null,
     // Opzioni per dichiarazione
     organizationName: null,
     contactEmail: null,
@@ -283,6 +285,15 @@ function parseArgs() {
 
       case '--no-profile':
         options.useProfile = false;
+        break;
+
+      case '--profile':
+        if (!args[i + 1] || args[i + 1].startsWith('-')) {
+          console.error('❌ Errore: Percorso profilo richiesto dopo --profile');
+          process.exit(1);
+        }
+        options.profilePath = args[i + 1];
+        i++; // Skip del prossimo argomento
         break;
 
       case '--select-profile':
@@ -376,9 +387,13 @@ async function runA11yCheck() {
   const options = parseArgs();
   const checker = new A11yChecker();
 
-  // Se richiesta selezione profilo, gestiscila prima di tutto
+  // Gestione profilo Chrome
   let selectedProfilePath = null;
-  if (options.selectProfile && options.useProfile) {
+  if (options.profilePath) {
+    // Usa il profilo specificato con --profile
+    selectedProfilePath = options.profilePath;
+  } else if (options.selectProfile && options.useProfile) {
+    // Mostra menu di selezione profilo
     selectedProfilePath = await selectChromeProfile();
   }
 

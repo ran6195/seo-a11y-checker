@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guida all'uso del Controllo SEO per Windows 11</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 40px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            border-bottom: 4px solid #27ae60;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+            font-size: 2.2em;
+        }
+
+        h2 {
+            color: #16a085;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding-left: 15px;
+            border-left: 5px solid #27ae60;
+            font-size: 1.6em;
+        }
+
+        h3 {
+            color: #34495e;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        h4 {
+            color: #2c3e50;
+            margin-top: 15px;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+
+        ul, ol {
+            margin-left: 25px;
+            margin-bottom: 20px;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        code {
+            background-color: #f4f4f4;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #c7254e;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border-left: 4px solid #27ae60;
+        }
+
+        pre code {
+            background-color: transparent;
+            border: none;
+            color: #ecf0f1;
+            padding: 0;
+        }
+
+        .alert {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            border-left: 5px solid;
+        }
+
+        .alert-info {
+            background-color: #d9edf7;
+            border-color: #31708f;
+            color: #31708f;
+        }
+
+        .alert-warning {
+            background-color: #fcf8e3;
+            border-color: #8a6d3b;
+            color: #8a6d3b;
+        }
+
+        .alert-success {
+            background-color: #dff0d8;
+            border-color: #3c763d;
+            color: #3c763d;
+        }
+
+        .alert-danger {
+            background-color: #f2dede;
+            border-color: #a94442;
+            color: #a94442;
+        }
+
+        .seo-checks {
+            background-color: #ecf9f2;
+            border: 2px solid #27ae60;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .seo-checks h4 {
+            color: #27ae60;
+            margin-top: 15px;
+            margin-bottom: 10px;
+        }
+
+        .seo-checks h4:first-child {
+            margin-top: 0;
+        }
+
+        .example-box {
+            background-color: #e8f8f5;
+            border: 2px solid #27ae60;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .example-box h4 {
+            color: #16a085;
+            margin-bottom: 10px;
+        }
+
+        .toc {
+            background-color: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+
+        .toc h2 {
+            margin-top: 0;
+            border-left: none;
+            padding-left: 0;
+        }
+
+        .toc ul {
+            list-style-type: none;
+            margin-left: 0;
+        }
+
+        .toc a {
+            color: #16a085;
+            text-decoration: none;
+        }
+
+        .toc a:hover {
+            color: #27ae60;
+            text-decoration: underline;
+        }
+
+        .web-interface {
+            background-color: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .web-interface h3 {
+            color: #856404;
+            margin-top: 0;
+        }
+
+        hr {
+            border: none;
+            border-top: 2px solid #ecf0f1;
+            margin: 40px 0;
+        }
+
+        strong {
+            color: #2c3e50;
+        }
+
+        a {
+            color: #27ae60;
+            text-decoration: none;
+        }
+
+        a:hover {
+            color: #16a085;
+            text-decoration: underline;
+        }
+
+        @media print {
+            body {
+                background-color: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+                padding: 20px;
+            }
+
+            pre {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Guida all'uso del Controllo SEO per Windows 11</h1>
+
+        <p>Questa guida spiega passo-passo come utilizzare lo strumento di controllo SEO dei siti web su Windows 11, anche se non hai esperienza tecnica.</p>
+        <p>
+Se sai già come utilizzare PowerShell e navigare nella cartella del progetto puoi saltare direttamente alla Parte 3.
+        </p>
+
+        <div class="toc">
+            <h2>Indice</h2>
+            <ul>
+                <li><a href="#prerequisiti">Cosa serve prima di iniziare</a></li>
+                <li><a href="#parte1">Parte 1: Come aprire PowerShell</a></li>
+                <li><a href="#parte2">Parte 2: Installare il programma (solo la prima volta)</a></li>
+                <li><a href="#parte3">Parte 3: Come controllare la SEO di un sito</a></li>
+                <li><a href="#parte4">Parte 4: Opzioni utili</a></li>
+                <li><a href="#parte5">Parte 5: Esempi completi</a></li>
+                <li><a href="#parte6">Parte 6: Cosa controlla lo strumento SEO</a></li>
+                <li><a href="#parte7">Parte 7: Dove trovare i report</a></li>
+                <li><a href="#parte8">Parte 8: Risoluzione problemi comuni</a></li>
+                <li><a href="#parte9">Parte 9: Usare l'interfaccia Web (alternativa più semplice)</a></li>
+                <li><a href="#riepilogo">Riepilogo comandi rapidi</a></li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <h2 id="prerequisiti">Cosa serve prima di iniziare</h2>
+
+        <ol>
+            <li><strong>Node.js</strong> installato sul computer (versione 14 o superiore)</li>
+            <li><strong>Google Chrome</strong> installato</li>
+            <li>La cartella del progetto sul tuo computer</li>
+        </ol>
+
+        <hr>
+
+        <h2 id="parte1">Parte 1: Come aprire PowerShell</h2>
+
+        <p>PowerShell è il programma dove scriverai i comandi per far funzionare lo strumento.</p>
+
+        <h3>Metodo 1: Dal menu Start (più semplice)</h3>
+        <ol>
+            <li>Clicca sul pulsante <strong>Start</strong> (icona Windows in basso a sinistra)</li>
+            <li>Scrivi nella barra di ricerca: <strong>powershell</strong></li>
+            <li>Clicca su <strong>Windows PowerShell</strong> quando appare nei risultati</li>
+            <li>Si aprirà una finestra blu con del testo bianco</li>
+        </ol>
+
+        <h3>Metodo 2: Da Esplora File</h3>
+        <ol>
+            <li>Apri <strong>Esplora File</strong> (icona della cartella nella barra in basso)</li>
+            <li>Vai nella cartella del progetto (quella che contiene i file <code>seo-cli.js</code>, <code>package.json</code>, ecc.)</li>
+            <li>Tieni premuto il tasto <strong>Shift</strong> (Maiuscolo) sulla tastiera</li>
+            <li>Fai clic destro in un punto vuoto della cartella</li>
+            <li>Scegli <strong>"Apri finestra PowerShell qui"</strong> oppure <strong>"Apri in Terminale"</strong></li>
+        </ol>
+
+        <h3>Come verificare di essere nella cartella giusta</h3>
+        <p>Dopo aver aperto PowerShell, vedrai un testo che indica dove ti trovi, ad esempio:</p>
+        <pre><code>PS C:\Users\TuoNome\Desktop\controlliedysma&gt;</code></pre>
+
+        <p>Se non sei nella cartella giusta, spostati con questo comando:</p>
+        <pre><code>cd C:\Users\galle\edysma-tools\</code></pre>
+
+        <p class="alert alert-info"><strong>Nota:</strong> Sostituisci il percorso con quello reale della tua cartella</p>
+
+        <hr>
+
+        <h2 id="parte2">Parte 2: Installare il programma (solo la prima volta)</h2>
+
+        <p>Prima di usare lo strumento, devi installare i componenti necessari. <strong>Fai questo solo la prima volta</strong>.</p>
+
+        <h3>Passo 1: Installare i componenti</h3>
+        <p>Scrivi questo comando e premi <strong>Invio</strong>:</p>
+        <pre><code>npm install</code></pre>
+
+        <p class="alert alert-warning">Vedrai scorrere molto testo. Aspetta che finisca (può richiedere qualche minuto).</p>
+
+        <h3>Passo 2: Installare il browser di test</h3>
+        <p>Scrivi questo comando e premi <strong>Invio</strong>:</p>
+        <pre><code>npx playwright install</code></pre>
+
+        <p class="alert alert-warning">Anche questo richiederà qualche minuto. Aspetta che finisca.</p>
+
+        <hr>
+
+        <h2 id="parte3">Parte 3: Come controllare la SEO di un sito</h2>
+
+        <p>Ora sei pronto per controllare i siti web!</p>
+
+        <h3>Comando base (esempio più semplice)</h3>
+
+        <p>Per controllare un sito web, usa questo comando:</p>
+        <pre><code>node seo-cli.js https://esempio.it</code></pre>
+
+        <p>Sostituisci <code>https://esempio.it</code> con l'indirizzo del sito che vuoi controllare.</p>
+
+        <div class="example-box">
+            <h4>Esempio reale:</h4>
+            <pre><code>node seo-cli.js https://www.comune.milano.it</code></pre>
+        </div>
+
+        <h3>Cosa succede dopo il comando?</h3>
+        <ol>
+            <li>Si aprirà una finestra di Chrome</li>
+            <li>Vedrai il browser visitare le pagine del sito</li>
+            <li>Nella finestra PowerShell vedrai apparire i risultati</li>
+            <li>Alla fine, verranno creati dei file con i report nella cartella <code>reports</code></li>
+        </ol>
+
+        <hr>
+
+        <h2 id="parte4">Parte 4: Opzioni utili</h2>
+
+        <p>Puoi aggiungere delle "opzioni" al comando per personalizzare il controllo.</p>
+
+        <h3>Controllare più pagine</h3>
+        <p>Per controllare più pagine (esempio: 20 pagine invece delle 5 predefinite):</p>
+        <pre><code>node seo-cli.js https://esempio.it -p 20</code></pre>
+
+        <h3>Controllare tutto il sito</h3>
+        <p>Per controllare tutte le pagine del sito (attenzione: può richiedere molto tempo!):</p>
+        <pre><code>node seo-cli.js https://esempio.it --crawl</code></pre>
+
+        <h3>Nascondere la finestra del browser</h3>
+        <p>Se non vuoi vedere la finestra di Chrome mentre lavora:</p>
+        <pre><code>node seo-cli.js https://esempio.it --headless</code></pre>
+
+        <h3>Scegliere il formato del report</h3>
+        <p>Puoi scegliere in che formato vuoi il report:</p>
+
+        <p><strong>Solo HTML (file da aprire nel browser):</strong></p>
+        <pre><code>node seo-cli.js https://esempio.it -f html</code></pre>
+
+        <p><strong>Solo Markdown (file di testo formattato):</strong></p>
+        <pre><code>node seo-cli.js https://esempio.it -f md</code></pre>
+
+        <p><strong>Solo JSON (file dati per altri programmi):</strong></p>
+        <pre><code>node seo-cli.js https://esempio.it -f json</code></pre>
+
+        <p><strong>Tutti i formati insieme:</strong></p>
+        <pre><code>node seo-cli.js https://esempio.it -f all</code></pre>
+
+        <h3>Dare un nome al report</h3>
+        <p>Per dare un nome specifico al file del report:</p>
+        <pre><code>node seo-cli.js https://esempio.it -o mio-report-seo</code></pre>
+
+        <p>Il report si chiamerà <code>mio-report-seo.html</code>, <code>mio-report-seo.md</code>, ecc.</p>
+
+        <hr>
+
+        <h2 id="parte5">Parte 5: Esempi completi</h2>
+
+        <div class="example-box">
+            <h4>Esempio 1: Controllo veloce di 10 pagine</h4>
+            <pre><code>node seo-cli.js https://www.example.com -p 10 --headless -f html</code></pre>
+            <p><strong>Questo comando:</strong></p>
+            <ul>
+                <li>Controlla il sito www.example.com</li>
+                <li>Analizza massimo 10 pagine</li>
+                <li>Non mostra la finestra del browser</li>
+                <li>Crea solo il report HTML</li>
+            </ul>
+        </div>
+
+        <div class="example-box">
+            <h4>Esempio 2: Controllo completo del sito</h4>
+            <pre><code>node seo-cli.js https://www.mysite.com --crawl -f all -o report-seo-completo</code></pre>
+            <p><strong>Questo comando:</strong></p>
+            <ul>
+                <li>Controlla tutto il sito www.mysite.com</li>
+                <li>Visita tutte le pagine trovate</li>
+                <li>Crea report in tutti i formati (HTML, MD, JSON)</li>
+                <li>Nomina i file <code>report-seo-completo.*</code></li>
+            </ul>
+        </div>
+
+        <div class="example-box">
+            <h4>Esempio 3: Controllo rapido senza browser visibile</h4>
+            <pre><code>node seo-cli.js https://www.esempio.it -p 5 --headless -f html -o check-veloce</code></pre>
+        </div>
+
+        <hr>
+
+        <h2 id="parte6">Parte 6: Cosa controlla lo strumento SEO</h2>
+
+        <p>Lo strumento verifica questi aspetti SEO del tuo sito:</p>
+
+        <div class="seo-checks">
+            <h4>1. Meta Tag (Title e Description)</h4>
+            <ul>
+                <li><strong>Title</strong>: Deve essere lungo tra 30 e 60 caratteri</li>
+                <li><strong>Description</strong>: Deve essere lunga tra 70 e 155 caratteri</li>
+                <li>Verifica la presenza di questi tag in ogni pagina</li>
+            </ul>
+
+            <h4>2. Struttura dei Titoli (H1-H6)</h4>
+            <ul>
+                <li>Controlla che ogni pagina abbia un solo H1</li>
+                <li>Verifica la gerarchia corretta dei titoli (H1 → H2 → H3, ecc.)</li>
+                <li>Identifica problemi come titoli saltati (es. H1 → H3 senza H2)</li>
+            </ul>
+
+            <h4>3. Dimensioni delle Pagine</h4>
+            <ul>
+                <li>Calcola il peso totale di ogni pagina (HTML + risorse)</li>
+                <li>Segnala pagine che superano i 200 KB</li>
+                <li>Aiuta a identificare pagine lente da caricare</li>
+            </ul>
+
+            <h4>4. Favicon</h4>
+            <ul>
+                <li>Verifica la presenza dell'icona del sito (favicon)</li>
+            </ul>
+
+            <h4>5. Email Esposte</h4>
+            <ul>
+                <li>Rileva indirizzi email visibili nel codice HTML</li>
+                <li>Utile per prevenire spam</li>
+            </ul>
+
+            <h4>6. Sezioni Legali</h4>
+            <ul>
+                <li>Controlla la presenza di link a:
+                    <ul>
+                        <li>Privacy Policy</li>
+                        <li>Cookie Policy</li>
+                        <li>Termini e Condizioni</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h4>7. Contenuti Duplicati</h4>
+            <ul>
+                <li>Identifica pagine con contenuto identico o molto simile</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <h2 id="parte7">Parte 7: Dove trovare i report</h2>
+
+        <p>Dopo che il controllo è finito, i report vengono salvati nella cartella:</p>
+        <pre><code>C:\percorso\tuo\progetto\reports\</code></pre>
+
+        <h3>Come aprire i report</h3>
+
+        <p><strong>Report HTML:</strong></p>
+        <ul>
+            <li>Vai nella cartella <code>reports</code></li>
+            <li>Trova il file che finisce con <code>.html</code></li>
+            <li>Fai doppio clic per aprirlo nel browser</li>
+        </ul>
+
+        <p><strong>Report Markdown (.md):</strong></p>
+        <ul>
+            <li>Puoi aprirli con Notepad o un editor di testo</li>
+            <li>Oppure usa un visualizzatore Markdown per una migliore formattazione</li>
+        </ul>
+
+        <p><strong>Report JSON:</strong></p>
+        <ul>
+            <li>Puoi aprirli con Notepad o un editor di testo</li>
+            <li>Sono file dati pensati per essere letti da altri programmi</li>
+        </ul>
+
+        <hr>
+
+        <h2 id="parte8">Parte 8: Risoluzione problemi comuni</h2>
+
+        <h3>"Il comando node non è riconosciuto"</h3>
+        <p><strong>Problema:</strong> Node.js non è installato o non è nel PATH di sistema.</p>
+
+        <p><strong>Soluzione:</strong></p>
+        <ol>
+            <li>Scarica Node.js da: <a href="https://nodejs.org/" target="_blank">https://nodejs.org/</a></li>
+            <li>Installa la versione LTS (raccomandata)</li>
+            <li>Riavvia PowerShell dopo l'installazione</li>
+        </ol>
+
+        <h3>"Impossibile caricare il file... non è consentita l'esecuzione di script"</h3>
+        <p><strong>Problema:</strong> PowerShell blocca l'esecuzione degli script per sicurezza.</p>
+
+        <p><strong>Soluzione:</strong></p>
+        <ol>
+            <li>Apri PowerShell <strong>come Amministratore</strong> (clic destro > "Esegui come amministratore")</li>
+            <li>Scrivi questo comando:
+                <pre><code>Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser</code></pre>
+            </li>
+            <li>Premi <strong>Invio</strong> e digita <strong>S</strong> (Sì) per confermare</li>
+            <li>Chiudi e riapri PowerShell normalmente</li>
+        </ol>
+
+        <h3>"Il browser non si apre"</h3>
+        <p><strong>Problema:</strong> Playwright non è installato correttamente.</p>
+
+        <p><strong>Soluzione:</strong></p>
+        <p>Esegui di nuovo:</p>
+        <pre><code>npx playwright install</code></pre>
+
+        <h3>Il programma sembra bloccato</h3>
+        <p><strong>Problema:</strong> Il sito è molto lento o ci sono molte pagine.</p>
+
+        <p><strong>Soluzione:</strong></p>
+        <ul>
+            <li>Aspetta qualche minuto</li>
+            <li>Se dopo 10-15 minuti non succede nulla, premi <strong>Ctrl+C</strong> per interrompere</li>
+            <li>Riprova con meno pagine: <code>-p 5</code></li>
+        </ul>
+
+        <h3>"Errore di timeout" o "Pagina non risponde"</h3>
+        <p><strong>Problema:</strong> Il sito è troppo lento o non risponde.</p>
+
+        <p><strong>Soluzione:</strong></p>
+        <ul>
+            <li>Verifica che l'indirizzo del sito sia corretto</li>
+            <li>Prova ad aprire il sito nel browser per verificare che funzioni</li>
+            <li>Alcuni siti possono bloccare i controlli automatici</li>
+        </ul>
+
+        <hr>
+
+        <h2 id="parte9">Parte 9: Usare l'interfaccia Web (alternativa più semplice)</h2>
+
+        <div class="web-interface">
+            <h3>💡 Consiglio: Usa l'interfaccia Web se i comandi ti sembrano complicati!</h3>
+            <p>Se preferisci non usare PowerShell, puoi usare l'interfaccia web del programma!</p>
+        </div>
+
+        <h3>Come avviare l'interfaccia web</h3>
+
+        <ol>
+            <li>Apri PowerShell nella cartella del progetto</li>
+            <li>Scrivi questo comando:
+                <pre><code>node seo-web-server.js</code></pre>
+            </li>
+            <li>Apri il browser e vai all'indirizzo: <strong>http://localhost:3000</strong></li>
+            <li>Vedrai un'interfaccia con moduli da compilare</li>
+            <li>Compila i campi e clicca sul pulsante per avviare il controllo</li>
+            <li>I risultati appariranno direttamente nella pagina web</li>
+        </ol>
+
+        <h3>Vantaggi dell'interfaccia web</h3>
+        <ul>
+            <li>✅ Non serve conoscere i comandi</li>
+            <li>✅ Tutti i parametri sono visibili in un modulo</li>
+            <li>✅ I report si scaricano automaticamente con un clic</li>
+            <li>✅ Puoi selezionare il profilo Chrome da un menu a tendina</li>
+            <li>✅ Vedi i risultati in tempo reale nella pagina</li>
+        </ul>
+
+        <hr>
+
+        <h2 id="riepilogo">Riepilogo comandi rapidi</h2>
+
+        <div class="alert alert-success">
+            <p><strong>Controllo base (5 pagine, tutti i formati)</strong></p>
+            <pre><code>node seo-cli.js https://esempio.it</code></pre>
+        </div>
+
+        <div class="alert alert-success">
+            <p><strong>Controllo veloce (10 pagine, solo HTML, senza finestra browser)</strong></p>
+            <pre><code>node seo-cli.js https://esempio.it -p 10 -f html --headless</code></pre>
+        </div>
+
+        <div class="alert alert-success">
+            <p><strong>Controllo completo di tutto il sito</strong></p>
+            <pre><code>node seo-cli.js https://esempio.it --crawl -f all</code></pre>
+        </div>
+
+        <div class="alert alert-success">
+            <p><strong>Controllo con nome personalizzato</strong></p>
+            <pre><code>node seo-cli.js https://esempio.it -o mio-report -f html</code></pre>
+        </div>
+
+        <div class="alert alert-warning">
+            <p><strong>Avviare interfaccia web (modo più semplice!)</strong></p>
+            <pre><code>node seo-web-server.js</code></pre>
+            <p>Poi apri: <strong>http://localhost:3000</strong></p>
+        </div>
+
+        <hr>
+
+        <h2>Bisogno di aiuto?</h2>
+
+        <p>Se qualcosa non funziona:</p>
+        <ol>
+            <li>Verifica di essere nella cartella giusta in PowerShell</li>
+            <li>Controlla di aver installato Node.js e i componenti (<code>npm install</code>)</li>
+            <li>Prova a riavviare PowerShell</li>
+            <li>Verifica che l'indirizzo del sito sia corretto (deve iniziare con <code>http://</code> o <code>https://</code>)</li>
+            <li><strong>Se i comandi sono troppo complicati, prova l'interfaccia web con <code>node seo-web-server.js</code></strong></li>
+        </ol>
+
+        <p class="alert alert-info">Per ulteriori informazioni tecniche, consulta il file <code>CLAUDE.md</code> nella cartella del progetto.</p>
+    </div>
+</body>
+</html>

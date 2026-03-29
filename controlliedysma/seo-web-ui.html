@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEO Checker - Web Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 968px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input[type="text"]:focus,
+        .form-group input[type="number"]:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .output-area {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 5px;
+            min-height: 400px;
+            max-height: 600px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .output-line {
+            margin-bottom: 4px;
+        }
+
+        .output-line.error {
+            color: #f48771;
+        }
+
+        .output-line.success {
+            color: #a9dc76;
+        }
+
+        .status-bar {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .status-bar.active {
+            display: block;
+        }
+
+        .status-bar.running {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+
+        .status-bar.success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+
+        .status-bar.error {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid rgba(0,0,0,.1);
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .small-text {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .info-box p {
+            margin: 5px 0;
+            color: #333;
+        }
+
+        .reports-list {
+            margin-top: 15px;
+        }
+
+        .report-item {
+            background: #f8f9fa;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .report-item a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .report-item a:hover {
+            text-decoration: underline;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 SEO Checker</h1>
+            <p>Interfaccia web per l'analisi SEO dei siti web</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Form Panel -->
+            <div class="card">
+                <h2>⚙️ Configurazione</h2>
+
+                <form id="seo-form">
+                    <div class="form-group">
+                        <label for="url">URL del sito *</label>
+                        <input type="text" id="url" name="url" placeholder="https://example.com" required>
+                        <div class="small-text">Inserisci l'URL completo del sito da analizzare</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Modalità di scansione</label>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="crawl" name="crawl">
+                            <label for="crawl">Crawling completo del sito</label>
+                        </div>
+                        <div class="small-text">Se disattivato, verrà utilizzato il limite di pagine sotto</div>
+                    </div>
+
+                    <div class="form-group" id="pages-group">
+                        <label for="pages">Numero massimo di pagine</label>
+                        <input type="number" id="pages" name="pages" value="5" min="1" max="100">
+                        <div class="small-text">Ignorato se "Crawling completo" è attivo</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="format">Formato report</label>
+                        <select id="format" name="format">
+                            <option value="both">HTML + Markdown</option>
+                            <option value="html">Solo HTML</option>
+                            <option value="md">Solo Markdown</option>
+                            <option value="json">Solo JSON</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="output">Nome file output (opzionale)</label>
+                        <input type="text" id="output" name="output" placeholder="report-seo">
+                        <div class="small-text">Lascia vuoto per nome automatico con timestamp</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Opzioni browser</label>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="headless" name="headless">
+                            <label for="headless">Modalità headless (nascosto)</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="noProfile" name="noProfile">
+                            <label for="noProfile">Non usare profilo Chrome</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="profile-group">
+                        <label for="profile">Profilo Chrome</label>
+                        <select id="profile" name="profile">
+                            <option value="">Caricamento...</option>
+                        </select>
+                        <div class="small-text">Utile per siti che richiedono autenticazione</div>
+                    </div>
+
+                    <button type="submit" class="button" id="submit-btn">
+                        🚀 Avvia Controllo SEO
+                    </button>
+                </form>
+            </div>
+
+            <!-- Output Panel -->
+            <div class="card">
+                <h2>📊 Output</h2>
+
+                <div class="status-bar" id="status-bar">
+                    <div id="status-text"></div>
+                </div>
+
+                <div class="output-area" id="output"></div>
+
+                <div id="reports-section" class="hidden">
+                    <h3 style="margin-top: 20px; margin-bottom: 10px; color: #333;">📄 Report generati</h3>
+                    <div class="reports-list" id="reports-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <div class="info-box">
+                <p><strong>💡 Suggerimenti:</strong></p>
+                <p>• Usa il "Crawling completo" per analizzare tutte le pagine del sito</p>
+                <p>• Seleziona un profilo Chrome se il sito richiede autenticazione</p>
+                <p>• La modalità headless è più veloce ma non mostra il browser</p>
+                <p>• I report vengono salvati nella directory del progetto</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elementi DOM
+        const form = document.getElementById('seo-form');
+        const outputArea = document.getElementById('output');
+        const statusBar = document.getElementById('status-bar');
+        const statusText = document.getElementById('status-text');
+        const submitBtn = document.getElementById('submit-btn');
+        const crawlCheckbox = document.getElementById('crawl');
+        const pagesGroup = document.getElementById('pages-group');
+        const noProfileCheckbox = document.getElementById('noProfile');
+        const profileGroup = document.getElementById('profile-group');
+        const profileSelect = document.getElementById('profile');
+        const reportsSection = document.getElementById('reports-section');
+        const reportsList = document.getElementById('reports-list');
+
+        // Carica profili Chrome all'avvio
+        loadChromeProfiles();
+
+        // Gestione form crawl
+        crawlCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                pagesGroup.style.opacity = '0.5';
+                document.getElementById('pages').disabled = true;
+            } else {
+                pagesGroup.style.opacity = '1';
+                document.getElementById('pages').disabled = false;
+            }
+        });
+
+        // Gestione profilo Chrome
+        noProfileCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                profileGroup.style.display = 'none';
+            } else {
+                profileGroup.style.display = 'block';
+            }
+        });
+
+        // Carica profili Chrome disponibili
+        async function loadChromeProfiles() {
+            try {
+                const response = await fetch('/api/chrome-profiles');
+                const profiles = await response.json();
+
+                profileSelect.innerHTML = '<option value="">Profilo predefinito</option>';
+
+                profiles.forEach(profile => {
+                    const option = document.createElement('option');
+                    option.value = profile.path;
+                    option.textContent = `${profile.displayName} (${profile.name})`;
+                    profileSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Errore caricamento profili:', error);
+                profileSelect.innerHTML = '<option value="">Errore caricamento profili</option>';
+            }
+        }
+
+        // Gestione submit form
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            // Reset output
+            outputArea.innerHTML = '';
+            reportsSection.classList.add('hidden');
+            reportsList.innerHTML = '';
+
+            // Mostra status running
+            statusBar.className = 'status-bar active running';
+            statusText.innerHTML = '<span class="spinner"></span>Controllo SEO in corso...';
+
+            // Disabilita button
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Controllo in corso...';
+
+            // Raccogli parametri
+            const params = {
+                url: document.getElementById('url').value,
+                pages: parseInt(document.getElementById('pages').value),
+                crawl: document.getElementById('crawl').checked,
+                format: document.getElementById('format').value,
+                output: document.getElementById('output').value || null,
+                headless: document.getElementById('headless').checked,
+                noProfile: document.getElementById('noProfile').checked,
+                profilePath: document.getElementById('profile').value || null
+            };
+
+            try {
+                console.log('📤 Invio richiesta con parametri:', params);
+
+                // Invia richiesta
+                const response = await fetch('/api/run-seo', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(params)
+                });
+
+                console.log('📥 Risposta ricevuta:', response.status, response.statusText);
+
+                if (!response.ok) {
+                    throw new Error('Errore nella richiesta: ' + response.status);
+                }
+
+                // Aggiungi messaggio di conferma
+                addOutput('🔄 Connessione stabilita, in attesa dell\'output...\n');
+
+                // Leggi stream
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+
+                    if (done) {
+                        console.log('✅ Stream terminato');
+                        break;
+                    }
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // Mantieni l'ultima linea incompleta
+
+                    console.log(`📦 Ricevute ${lines.length} linee`);
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                console.log('📨 Dato ricevuto:', data.type);
+                                handleStreamData(data);
+                            } catch (e) {
+                                console.error('❌ Errore parsing:', e, 'Linea:', line);
+                            }
+                        }
+                    }
+                }
+
+            } catch (error) {
+                console.error('❌ Errore:', error);
+                addOutput('❌ Errore durante l\'esecuzione: ' + error.message, 'error');
+                statusBar.className = 'status-bar active error';
+                statusText.textContent = '❌ Errore durante il controllo';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '🚀 Avvia Controllo SEO';
+            }
+        });
+
+        // Gestione dati stream
+        function handleStreamData(data) {
+            if (data.type === 'stdout') {
+                addOutput(data.message);
+            } else if (data.type === 'stderr') {
+                addOutput(data.message, 'error');
+            } else if (data.type === 'close') {
+                if (data.code === 0) {
+                    statusBar.className = 'status-bar active success';
+                    statusText.textContent = '✅ Controllo completato con successo!';
+                    addOutput('\n✅ Processo completato con successo!', 'success');
+                } else {
+                    statusBar.className = 'status-bar active error';
+                    statusText.textContent = '❌ Controllo terminato con errori';
+                    addOutput(`\n❌ Processo terminato con codice ${data.code}`, 'error');
+                }
+            } else if (data.type === 'error') {
+                addOutput('❌ ' + data.message, 'error');
+            }
+        }
+
+        // Aggiungi output
+        function addOutput(text, className = '') {
+            const line = document.createElement('div');
+            line.className = 'output-line ' + className;
+            line.textContent = text;
+            outputArea.appendChild(line);
+            outputArea.scrollTop = outputArea.scrollHeight;
+
+            // Cerca file generati
+            if (text.includes('.html') || text.includes('.md') || text.includes('.json')) {
+                detectGeneratedFiles(text);
+            }
+        }
+
+        // Rileva file generati nell'output
+        function detectGeneratedFiles(text) {
+            const htmlMatch = text.match(/([a-zA-Z0-9_-]+\.html)/);
+            const mdMatch = text.match(/([a-zA-Z0-9_-]+\.md)/);
+            const jsonMatch = text.match(/([a-zA-Z0-9_-]+\.json)/);
+
+            const files = [];
+            if (htmlMatch) files.push({ name: htmlMatch[1], type: 'HTML' });
+            if (mdMatch) files.push({ name: mdMatch[1], type: 'Markdown' });
+            if (jsonMatch) files.push({ name: jsonMatch[1], type: 'JSON' });
+
+            if (files.length > 0) {
+                reportsSection.classList.remove('hidden');
+                files.forEach(file => addReportLink(file.name, file.type));
+            }
+        }
+
+        // Aggiungi link al report
+        function addReportLink(filename, type) {
+            // Evita duplicati
+            if (document.querySelector(`a[data-filename="${filename}"]`)) {
+                return;
+            }
+
+            const item = document.createElement('div');
+            item.className = 'report-item';
+
+            const link = document.createElement('a');
+            link.href = `/api/download/${filename}`;
+            link.textContent = `📄 ${filename}`;
+            link.download = filename;
+            link.setAttribute('data-filename', filename);
+
+            const badge = document.createElement('span');
+            badge.style.cssText = 'background: #667eea; color: white; padding: 4px 8px; border-radius: 3px; font-size: 0.8rem;';
+            badge.textContent = type;
+
+            item.appendChild(link);
+            item.appendChild(badge);
+            reportsList.appendChild(item);
+        }
+    </script>
+</body>
+</html>

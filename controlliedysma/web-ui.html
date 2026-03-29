@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Analysis Toolkit - SEO & Accessibility</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab:hover {
+            background: #f0f0f0;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group input[type="email"],
+        .form-group input[type="date"],
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input[type="text"]:focus,
+        .form-group input[type="number"]:focus,
+        .form-group input[type="email"]:focus,
+        .form-group input[type="date"]:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .output-area {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 5px;
+            min-height: 400px;
+            max-height: 600px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .output-line {
+            margin-bottom: 4px;
+        }
+
+        .output-line.error {
+            color: #f48771;
+        }
+
+        .output-line.success {
+            color: #a9dc76;
+        }
+
+        .status-bar {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .status-bar.active {
+            display: block;
+        }
+
+        .status-bar.running {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+
+        .status-bar.success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+
+        .status-bar.error {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid rgba(0,0,0,.1);
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .small-text {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .info-box p {
+            margin: 5px 0;
+            color: #333;
+        }
+
+        .reports-list {
+            margin-top: 15px;
+        }
+
+        .report-item {
+            background: #f8f9fa;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .report-item a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .report-item a:hover {
+            text-decoration: underline;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .collapsible {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .collapsible::before {
+            content: '▼ ';
+            display: inline-block;
+            transition: transform 0.3s;
+        }
+
+        .collapsible.collapsed::before {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .collapsible-content.collapsed {
+            max-height: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌐 Web Analysis Toolkit</h1>
+            <p>Analisi SEO e Accessibilità per siti web</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="seo">🔍 SEO Checker</button>
+            <button class="tab" data-tab="a11y">♿ Accessibility Checker</button>
+        </div>
+
+        <div class="main-content">
+            <!-- Form Panel -->
+            <div class="card">
+                <h2 id="form-title">⚙️ Configurazione SEO</h2>
+
+                <!-- SEO Form -->
+                <form id="seo-form" class="tool-form">
+                    <div class="form-group">
+                        <label for="seo-url">URL del sito *</label>
+                        <input type="text" id="seo-url" name="url" placeholder="https://example.com" required>
+                        <div class="small-text">Inserisci l'URL completo del sito da analizzare</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Modalità di scansione</label>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="seo-crawl" name="crawl">
+                            <label for="seo-crawl">Crawling completo del sito</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="seo-pages-group">
+                        <label for="seo-pages">Numero massimo di pagine</label>
+                        <input type="number" id="seo-pages" name="pages" value="5" min="1" max="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="seo-format">Formato report</label>
+                        <select id="seo-format" name="format">
+                            <option value="both">Tutti i formati (HTML + MD)</option>
+                            <option value="html">Solo HTML</option>
+                            <option value="md">Solo Markdown</option>
+                            <option value="json">Solo JSON</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="seo-output">Nome file output (opzionale)</label>
+                        <input type="text" id="seo-output" name="output" placeholder="report-seo">
+                        <div class="small-text">Lascia vuoto per nome automatico con timestamp</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Opzioni browser</label>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="seo-headless" name="headless">
+                            <label for="seo-headless">Modalità headless (nascosto)</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="seo-noProfile" name="noProfile">
+                            <label for="seo-noProfile">Non usare profilo Chrome</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="seo-profile-group">
+                        <label for="seo-profile">Profilo Chrome</label>
+                        <select id="seo-profile" name="profile">
+                            <option value="">Caricamento...</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="button">🚀 Avvia Controllo SEO</button>
+                </form>
+
+                <!-- A11y Form -->
+                <form id="a11y-form" class="tool-form hidden">
+                    <div class="form-group">
+                        <label for="a11y-url">URL del sito *</label>
+                        <input type="text" id="a11y-url" name="url" placeholder="https://example.com" required>
+                        <div class="small-text">Inserisci l'URL completo del sito da analizzare</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Modalità di scansione</label>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="a11y-crawl" name="crawl">
+                            <label for="a11y-crawl">Crawling completo del sito</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="a11y-pages-group">
+                        <label for="a11y-pages">Numero massimo di pagine</label>
+                        <input type="number" id="a11y-pages" name="pages" value="5" min="1" max="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="a11y-format">Formato report</label>
+                        <select id="a11y-format" name="format">
+                            <option value="all">Tutti i formati standard</option>
+                            <option value="html">Solo HTML</option>
+                            <option value="md">Solo Markdown</option>
+                            <option value="json">Solo JSON</option>
+                            <option value="dichiarazione">Dichiarazione Accessibilità (Legge 4/2004)</option>
+                            <option value="allegato2">Allegato 2 AGID (WCAG 2.1 AA)</option>
+                        </select>
+                        <div class="small-text">Formato "all" genera HTML, MD e JSON</div>
+                    </div>
+
+                    <!-- Opzioni Dichiarazione (collassabili) -->
+                    <div id="dichiarazione-options" class="hidden">
+                        <h3 class="collapsible" style="margin: 20px 0 10px 0; font-size: 1.1rem;">Opzioni Dichiarazione</h3>
+                        <div class="collapsible-content">
+                            <div class="form-group">
+                                <label for="a11y-org">Nome organizzazione</label>
+                                <input type="text" id="a11y-org" name="org" placeholder="L'ORGANIZZAZIONE">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="a11y-email">Email di contatto</label>
+                                <input type="email" id="a11y-email" name="email" placeholder="contatti@esempio.it">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="a11y-phone">Telefono (opzionale)</label>
+                                <input type="text" id="a11y-phone" name="phone" placeholder="+39 123 456 7890">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="a11y-pubDate">Data pubblicazione sito</label>
+                                <input type="text" id="a11y-pubDate" name="pubDate" placeholder="01/01/2020">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="a11y-cms">CMS/Sistema utilizzato</label>
+                                <input type="text" id="a11y-cms" name="cms" placeholder="Custom">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="a11y-aiKey">Chiave API Anthropic (opzionale)</label>
+                                <input type="text" id="a11y-aiKey" name="aiKey" placeholder="sk-ant-api03-...">
+                                <div class="small-text">Per semplificare le descrizioni tecniche con AI</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="a11y-output">Nome file output (opzionale)</label>
+                        <input type="text" id="a11y-output" name="output" placeholder="report-a11y">
+                        <div class="small-text">Lascia vuoto per nome automatico con timestamp</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Opzioni browser</label>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="a11y-headless" name="headless">
+                            <label for="a11y-headless">Modalità headless (nascosto)</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="a11y-noProfile" name="noProfile">
+                            <label for="a11y-noProfile">Non usare profilo Chrome</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="a11y-profile-group">
+                        <label for="a11y-profile">Profilo Chrome</label>
+                        <select id="a11y-profile" name="profile">
+                            <option value="">Caricamento...</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="button">♿ Avvia Controllo Accessibilità</button>
+                </form>
+            </div>
+
+            <!-- Output Panel -->
+            <div class="card">
+                <h2>📊 Output</h2>
+
+                <div class="status-bar" id="status-bar">
+                    <div id="status-text"></div>
+                </div>
+
+                <div class="output-area" id="output"></div>
+
+                <div id="reports-section" class="hidden">
+                    <h3 style="margin-top: 20px; margin-bottom: 10px; color: #333;">📄 Report generati</h3>
+                    <div class="reports-list" id="reports-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+            <div class="info-box">
+                <p><strong>💡 Suggerimenti:</strong></p>
+                <p>• <strong>SEO Checker:</strong> Analizza meta tags, heading structure, page size, legal sections</p>
+                <p>• <strong>A11y Checker:</strong> Test WCAG 2.1 AA/AAA con axe-core e custom checks</p>
+                <p>• Usa il "Crawling completo" per analizzare tutte le pagine del sito</p>
+                <p>• Seleziona un profilo Chrome se il sito richiede autenticazione</p>
+                <p>• La modalità headless è più veloce ma non mostra il browser</p>
+                <p>• I report vengono salvati nella directory del progetto</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elementi DOM
+        const tabs = document.querySelectorAll('.tab');
+        const seoForm = document.getElementById('seo-form');
+        const a11yForm = document.getElementById('a11y-form');
+        const formTitle = document.getElementById('form-title');
+        const outputArea = document.getElementById('output');
+        const statusBar = document.getElementById('status-bar');
+        const statusText = document.getElementById('status-text');
+        const reportsSection = document.getElementById('reports-section');
+        const reportsList = document.getElementById('reports-list');
+
+        let currentTool = 'seo';
+
+        // Carica profili Chrome all'avvio
+        loadChromeProfiles();
+
+        // Gestione tab
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const toolType = tab.dataset.tab;
+
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                if (toolType === 'seo') {
+                    seoForm.classList.remove('hidden');
+                    a11yForm.classList.add('hidden');
+                    formTitle.textContent = '⚙️ Configurazione SEO';
+                    currentTool = 'seo';
+                } else {
+                    seoForm.classList.add('hidden');
+                    a11yForm.classList.remove('hidden');
+                    formTitle.textContent = '⚙️ Configurazione Accessibilità';
+                    currentTool = 'a11y';
+                }
+
+                // Reset output
+                outputArea.innerHTML = '';
+                statusBar.classList.remove('active');
+                reportsSection.classList.add('hidden');
+                reportsList.innerHTML = '';
+            });
+        });
+
+        // Gestione crawl checkbox (SEO)
+        document.getElementById('seo-crawl').addEventListener('change', function() {
+            const pagesGroup = document.getElementById('seo-pages-group');
+            const pagesInput = document.getElementById('seo-pages');
+
+            if (this.checked) {
+                pagesGroup.style.opacity = '0.5';
+                pagesInput.disabled = true;
+            } else {
+                pagesGroup.style.opacity = '1';
+                pagesInput.disabled = false;
+            }
+        });
+
+        // Gestione crawl checkbox (A11y)
+        document.getElementById('a11y-crawl').addEventListener('change', function() {
+            const pagesGroup = document.getElementById('a11y-pages-group');
+            const pagesInput = document.getElementById('a11y-pages');
+
+            if (this.checked) {
+                pagesGroup.style.opacity = '0.5';
+                pagesInput.disabled = true;
+            } else {
+                pagesGroup.style.opacity = '1';
+                pagesInput.disabled = false;
+            }
+        });
+
+        // Gestione profilo Chrome (SEO)
+        document.getElementById('seo-noProfile').addEventListener('change', function() {
+            const profileGroup = document.getElementById('seo-profile-group');
+            profileGroup.style.display = this.checked ? 'none' : 'block';
+        });
+
+        // Gestione profilo Chrome (A11y)
+        document.getElementById('a11y-noProfile').addEventListener('change', function() {
+            const profileGroup = document.getElementById('a11y-profile-group');
+            profileGroup.style.display = this.checked ? 'none' : 'block';
+        });
+
+        // Gestione formato dichiarazione (A11y)
+        document.getElementById('a11y-format').addEventListener('change', function() {
+            const dichiarazioneOptions = document.getElementById('dichiarazione-options');
+            if (this.value === 'dichiarazione' || this.value === 'allegato2') {
+                dichiarazioneOptions.classList.remove('hidden');
+            } else {
+                dichiarazioneOptions.classList.add('hidden');
+            }
+        });
+
+        // Gestione collapsible
+        document.querySelectorAll('.collapsible').forEach(el => {
+            el.addEventListener('click', function() {
+                this.classList.toggle('collapsed');
+                this.nextElementSibling.classList.toggle('collapsed');
+            });
+        });
+
+        // Carica profili Chrome disponibili
+        async function loadChromeProfiles() {
+            try {
+                const response = await fetch('/api/chrome-profiles');
+                const profiles = await response.json();
+
+                const seoProfileSelect = document.getElementById('seo-profile');
+                const a11yProfileSelect = document.getElementById('a11y-profile');
+
+                const optionsHTML = '<option value="">Profilo predefinito</option>' +
+                    profiles.map(p => `<option value="${p.path}">${p.displayName} (${p.name})</option>`).join('');
+
+                seoProfileSelect.innerHTML = optionsHTML;
+                a11yProfileSelect.innerHTML = optionsHTML;
+            } catch (error) {
+                console.error('Errore caricamento profili:', error);
+                document.getElementById('seo-profile').innerHTML = '<option value="">Errore caricamento</option>';
+                document.getElementById('a11y-profile').innerHTML = '<option value="">Errore caricamento</option>';
+            }
+        }
+
+        // Gestione submit SEO
+        seoForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const params = {
+                url: document.getElementById('seo-url').value,
+                pages: parseInt(document.getElementById('seo-pages').value),
+                crawl: document.getElementById('seo-crawl').checked,
+                format: document.getElementById('seo-format').value,
+                output: document.getElementById('seo-output').value || null,
+                headless: document.getElementById('seo-headless').checked,
+                noProfile: document.getElementById('seo-noProfile').checked,
+                profilePath: document.getElementById('seo-profile').value || null
+            };
+            await runCheck('seo', params);
+        });
+
+        // Gestione submit A11y
+        a11yForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const params = {
+                url: document.getElementById('a11y-url').value,
+                pages: parseInt(document.getElementById('a11y-pages').value),
+                crawl: document.getElementById('a11y-crawl').checked,
+                format: document.getElementById('a11y-format').value,
+                output: document.getElementById('a11y-output').value || null,
+                headless: document.getElementById('a11y-headless').checked,
+                noProfile: document.getElementById('a11y-noProfile').checked,
+                profilePath: document.getElementById('a11y-profile').value || null,
+                org: document.getElementById('a11y-org').value || null,
+                email: document.getElementById('a11y-email').value || null,
+                phone: document.getElementById('a11y-phone').value || null,
+                pubDate: document.getElementById('a11y-pubDate').value || null,
+                cms: document.getElementById('a11y-cms').value || null,
+                aiKey: document.getElementById('a11y-aiKey').value || null
+            };
+            await runCheck('a11y', params);
+        });
+
+        // Esegui controllo
+        async function runCheck(toolType, params) {
+            // Reset output
+            outputArea.innerHTML = '';
+            reportsSection.classList.add('hidden');
+            reportsList.innerHTML = '';
+
+            // Status running
+            statusBar.className = 'status-bar active running';
+            statusText.innerHTML = `<span class="spinner"></span>Controllo ${toolType.toUpperCase()} in corso...`;
+
+            // Disabilita button
+            const submitBtn = toolType === 'seo'
+                ? seoForm.querySelector('.button')
+                : a11yForm.querySelector('.button');
+            submitBtn.disabled = true;
+            submitBtn.textContent = `⏳ Controllo in corso...`;
+
+            try {
+                const response = await fetch(`/api/run-${toolType}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(params)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Errore nella richiesta: ' + response.status);
+                }
+
+                addOutput('🔄 Connessione stabilita, in attesa dell\'output...\n');
+
+                // Leggi stream
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                handleStreamData(data);
+                            } catch (e) {
+                                console.error('Errore parsing:', e);
+                            }
+                        }
+                    }
+                }
+
+            } catch (error) {
+                console.error('Errore:', error);
+                addOutput('❌ Errore durante l\'esecuzione: ' + error.message, 'error');
+                statusBar.className = 'status-bar active error';
+                statusText.textContent = '❌ Errore durante il controllo';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = toolType === 'seo' ? '🚀 Avvia Controllo SEO' : '♿ Avvia Controllo Accessibilità';
+            }
+        }
+
+        // Gestione dati stream
+        function handleStreamData(data) {
+            if (data.type === 'stdout') {
+                addOutput(data.message);
+            } else if (data.type === 'stderr') {
+                addOutput(data.message, 'error');
+            } else if (data.type === 'close') {
+                if (data.code === 0) {
+                    statusBar.className = 'status-bar active success';
+                    statusText.textContent = '✅ Controllo completato con successo!';
+                    addOutput('\n✅ Processo completato con successo!', 'success');
+                } else {
+                    statusBar.className = 'status-bar active error';
+                    statusText.textContent = '❌ Controllo terminato con errori';
+                    addOutput(`\n❌ Processo terminato con codice ${data.code}`, 'error');
+                }
+            } else if (data.type === 'error') {
+                addOutput('❌ ' + data.message, 'error');
+            }
+        }
+
+        // Aggiungi output
+        function addOutput(text, className = '') {
+            const line = document.createElement('div');
+            line.className = 'output-line ' + className;
+            line.textContent = text;
+            outputArea.appendChild(line);
+            outputArea.scrollTop = outputArea.scrollHeight;
+
+            // Cerca file generati
+            if (text.includes('.html') || text.includes('.md') || text.includes('.json') || text.includes('.pdf')) {
+                detectGeneratedFiles(text);
+            }
+        }
+
+        // Rileva file generati
+        function detectGeneratedFiles(text) {
+            const patterns = [
+                { regex: /([a-zA-Z0-9_-]+\.html)/g, type: 'HTML' },
+                { regex: /([a-zA-Z0-9_-]+\.md)/g, type: 'Markdown' },
+                { regex: /([a-zA-Z0-9_-]+\.json)/g, type: 'JSON' },
+                { regex: /([a-zA-Z0-9_-]+\.pdf)/g, type: 'PDF' }
+            ];
+
+            patterns.forEach(({ regex, type }) => {
+                const matches = text.matchAll(regex);
+                for (const match of matches) {
+                    addReportLink(match[1], type);
+                }
+            });
+        }
+
+        // Aggiungi link report
+        function addReportLink(filename, type) {
+            // Evita duplicati
+            if (document.querySelector(`a[data-filename="${filename}"]`)) {
+                return;
+            }
+
+            reportsSection.classList.remove('hidden');
+
+            const item = document.createElement('div');
+            item.className = 'report-item';
+
+            const link = document.createElement('a');
+            link.href = `/api/download/${filename}`;
+            link.textContent = `📄 ${filename}`;
+            link.download = filename;
+            link.setAttribute('data-filename', filename);
+
+            const badge = document.createElement('span');
+            badge.style.cssText = 'background: #667eea; color: white; padding: 4px 8px; border-radius: 3px; font-size: 0.8rem;';
+            badge.textContent = type;
+
+            item.appendChild(link);
+            item.appendChild(badge);
+            reportsList.appendChild(item);
+        }
+    </script>
+</body>
+</html>
