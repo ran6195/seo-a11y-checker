@@ -2,6 +2,7 @@ const { chromium } = require('playwright');
 const chromeLauncher = require('chrome-launcher');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 function _buildTimestamp(date) {
   const p = n => String(n).padStart(2, '0');
@@ -179,13 +180,15 @@ class LighthouseChecker {
   async checkUrl(url, options = {}) {
     const { default: lighthouse } = await import('lighthouse');
 
+    // Su Windows chrome-launcher non riesce a creare directory in os.tmpdir() (EPERM).
+    // Usiamo un percorso nella home dell'utente che è sempre scrivibile.
+    const chromeUserDataDir = options.userDataDir || path.join(os.homedir(), '.lighthouse-chrome-tmp');
+    fs.mkdirSync(chromeUserDataDir, { recursive: true });
+
     const chromeFlags = ['--headless=new', '--disable-gpu'];
-    if (options.userDataDir) {
-      chromeFlags.push(`--user-data-dir=${options.userDataDir}`);
-    }
 
     console.log(`\n🔍 Analisi Lighthouse: ${url}`);
-    const chrome = await chromeLauncher.launch({ chromeFlags });
+    const chrome = await chromeLauncher.launch({ chromeFlags, userDataDir: chromeUserDataDir });
 
     try {
       const categories = options.categories || ['performance', 'accessibility', 'seo', 'best-practices'];
