@@ -1,5 +1,5 @@
 const { chromium } = require('playwright');
-const chromeLauncher = require('chrome-launcher');
+const net = require('net');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -180,15 +180,27 @@ class LighthouseChecker {
   async checkUrl(url, options = {}) {
     const { default: lighthouse } = await import('lighthouse');
 
-    // Su Windows chrome-launcher non riesce a creare directory in os.tmpdir() (EPERM).
-    // Usiamo un percorso nella home dell'utente che è sempre scrivibile.
-    const chromeUserDataDir = options.userDataDir || path.join(os.homedir(), '.lighthouse-chrome-tmp');
-    fs.mkdirSync(chromeUserDataDir, { recursive: true });
+    // Trova una porta libera per il canale CDP di Chrome
+    const port = await new Promise((resolve, reject) => {
+      const srv = net.createServer();
+      srv.listen(0, '127.0.0.1', () => { const p = srv.address().port; srv.close(() => resolve(p)); });
+      srv.on('error', reject);
+    });
 
-    const chromeFlags = ['--headless=new', '--disable-gpu'];
+    // Lancia Chrome tramite Playwright (evita i problemi EPERM di chrome-launcher su Windows)
+    let lhBrowser = null;
+    let lhContext = null;
+    const launchArgs = [`--remote-debugging-port=${port}`, '--disable-gpu', '--no-sandbox'];
 
     console.log(`\n🔍 Analisi Lighthouse: ${url}`);
-    const chrome = await chromeLauncher.launch({ chromeFlags, userDataDir: chromeUserDataDir });
+
+    if (options.userDataDir) {
+      lhContext = await chromium.launchPersistentContext(options.userDataDir, {
+        headless: true, channel: 'chrome', args: launchArgs,
+      });
+    } else {
+      lhBrowser = await chromium.launch({ headless: true, args: launchArgs });
+    }
 
     try {
       const categories = options.categories || ['performance', 'accessibility', 'seo', 'best-practices'];
@@ -196,7 +208,7 @@ class LighthouseChecker {
       const throttlingMethod = options.throttling || 'simulate';
 
       const lhOptions = {
-        port: chrome.port,
+        port,
         output: 'json',
         onlyCategories: categories,
         logLevel: 'error',
@@ -251,7 +263,8 @@ class LighthouseChecker {
       return result;
 
     } finally {
-      await chrome.kill();
+      if (lhBrowser) await lhBrowser.close();
+      if (lhContext) await lhContext.close();
     }
   }
 
