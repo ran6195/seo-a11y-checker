@@ -28,6 +28,8 @@ ANTHROPIC_API_KEY=sk-ant-api03-...
 
 ## Avvio rapido — Interfaccia web
 
+> **Nota:** l'interfaccia web è sperimentale. Alcune funzionalità potrebbero essere incomplete o soggette a modifiche.
+
 Il modo più semplice per usare il toolkit è l'interfaccia web:
 
 ```bash
