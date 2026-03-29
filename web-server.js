@@ -306,7 +306,7 @@ app.post('/api/run-a11y', (req, res) => {
 // API: Download report
 app.get('/api/download/:filename', (req, res) => {
   const filename = path.basename(req.params.filename);
-  const filePath = path.join(__dirname, filename);
+  const filePath = path.join(__dirname, 'docs', filename);
 
   if (fs.existsSync(filePath)) {
     const ext = path.extname(filename).toLowerCase();
@@ -327,20 +327,20 @@ app.get('/api/download/:filename', (req, res) => {
 
 // API: Lista file dichiarazioni
 app.get('/api/list-dichiarazioni', (req, res) => {
-  const dichiarazioniDir = path.join(__dirname, 'dichiarazioni');
+  const docsDir = path.join(__dirname, 'docs');
 
-  if (!fs.existsSync(dichiarazioniDir)) {
+  if (!fs.existsSync(docsDir)) {
     return res.json([]);
   }
 
   try {
-    const files = fs.readdirSync(dichiarazioniDir)
-      .filter(f => f.endsWith('.html') || f.endsWith('.pdf'))
+    const files = fs.readdirSync(docsDir)
+      .filter(f => f.endsWith('_dichiarazione.html') || f.endsWith('_allegato2.html') || f.endsWith('.pdf'))
       .map(f => ({
         name: f,
-        path: `dichiarazioni/${f}`,
-        size: fs.statSync(path.join(dichiarazioniDir, f)).size,
-        modified: fs.statSync(path.join(dichiarazioniDir, f)).mtime
+        path: f,
+        size: fs.statSync(path.join(docsDir, f)).size,
+        modified: fs.statSync(path.join(docsDir, f)).mtime
       }))
       .sort((a, b) => b.modified - a.modified);
 

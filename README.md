@@ -117,7 +117,7 @@ node html-to-pdf.js report.html -o output.pdf --format A3
 
 ## Note
 
-- I report vengono salvati nella cartella corrente con timestamp nel nome (es. `seo-report-2025-01-15-10-30-00.html`).
+- I report vengono salvati nella cartella `docs/` (non tracciata da git) con il formato `YYYYMMDD_HHMM_<dominio>_<tipo>.<ext>` (es. `20250115_1030_esempio_it_seo.html`).
 - Per siti con autenticazione, usa `--select-profile` per scegliere un profilo Chrome già loggato.
 - La funzione di semplificazione AI delle descrizioni (nelle dichiarazioni) richiede una chiave API Anthropic nel file `.env`.
 

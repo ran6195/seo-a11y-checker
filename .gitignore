@@ -113,6 +113,7 @@ test-report.json
 reports/
 documenti/
 gruppo_zatti/
+docs/
 
 # Archivi
 *.zip

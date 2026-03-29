@@ -187,7 +187,10 @@ Esempi:
   }
 
   // Generate output filenames
-  const baseName = options.output || `a11y_csv_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
+  const csvStem = csvPath.replace(/.*[\\/]/, '').replace(/\.[^.]*$/, '').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  const now = new Date();
+  const ts = now.toISOString().slice(0, 16).replace(/-/g, '').replace('T', '_').replace(':', '');
+  const baseName = options.output || `${ts}_${csvStem}_a11y`;
 
   const checker = new A11yFromCSV();
 

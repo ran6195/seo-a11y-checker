@@ -5,6 +5,24 @@ const fs = require('fs');
 const path = require('path');
 const Anthropic = require('@anthropic-ai/sdk');
 
+function _buildTimestamp(date) {
+  return date.toISOString().slice(0, 16).replace(/-/g, '').replace('T', '_').replace(':', '');
+}
+
+function _extractDomain(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  } catch (e) {
+    return 'sito';
+  }
+}
+
+function _docsPath(filename) {
+  const docsDir = path.join(process.cwd(), 'docs');
+  fs.mkdirSync(docsDir, { recursive: true });
+  return path.join(docsDir, filename);
+}
+
 class A11yChecker {
   constructor() {
     this.browser = null;
@@ -759,18 +777,8 @@ class A11yChecker {
     const duration = Math.round((endTime - this.startTime) / 1000);
 
     if (!filename) {
-      // Estrai il nome del sito dalla prima URL
-      let siteName = 'sito';
-      if (this.results.length > 0 && this.results[0].url) {
-        try {
-          const urlObj = new URL(this.results[0].url);
-          siteName = urlObj.hostname.replace(/^www\./, '').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        } catch (e) {
-          // Ignora errori di parsing
-        }
-      }
-      const timestamp = endTime.toISOString().slice(0, 19).replace(/[T:]/g, '-');
-      filename = `${siteName}_${timestamp}.md`;
+      const domain = this.results.length > 0 ? _extractDomain(this.results[0].url) : 'sito';
+      filename = `${_buildTimestamp(endTime)}_${domain}_a11y.md`;
     }
 
     let totalViolations = 0;
@@ -943,7 +951,7 @@ class A11yChecker {
 *Report generato automaticamente da A11y Checker con Playwright e axe-core*
 `;
 
-    const filepath = path.join(process.cwd(), filename);
+    const filepath = _docsPath(filename);
     fs.writeFileSync(filepath, markdown, 'utf8');
 
     console.log(`\n📄 Report Markdown salvato: ${filepath}`);
@@ -965,18 +973,8 @@ class A11yChecker {
     const duration = Math.round((endTime - this.startTime) / 1000);
 
     if (!filename) {
-      // Estrai il nome del sito dalla prima URL
-      let siteName = 'sito';
-      if (this.results.length > 0 && this.results[0].url) {
-        try {
-          const urlObj = new URL(this.results[0].url);
-          siteName = urlObj.hostname.replace(/^www\./, '').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        } catch (e) {
-          // Ignora errori di parsing
-        }
-      }
-      const timestamp = endTime.toISOString().slice(0, 19).replace(/[T:]/g, '-');
-      filename = `${siteName}_${timestamp}.html`;
+      const domain = this.results.length > 0 ? _extractDomain(this.results[0].url) : 'sito';
+      filename = `${_buildTimestamp(endTime)}_${domain}_a11y.html`;
     }
 
     let totalViolations = 0;
@@ -1189,7 +1187,7 @@ class A11yChecker {
 </body>
 </html>`;
 
-    const filepath = path.join(process.cwd(), filename);
+    const filepath = _docsPath(filename);
     fs.writeFileSync(filepath, html, 'utf8');
 
     console.log(`\n📄 Report HTML salvato: ${filepath}`);
@@ -1201,18 +1199,8 @@ class A11yChecker {
     const duration = Math.round((endTime - this.startTime) / 1000);
 
     if (!filename) {
-      // Estrai il nome del sito dalla prima URL
-      let siteName = 'sito';
-      if (this.results.length > 0 && this.results[0].url) {
-        try {
-          const urlObj = new URL(this.results[0].url);
-          siteName = urlObj.hostname.replace(/^www\./, '').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-        } catch (e) {
-          // Ignora errori di parsing
-        }
-      }
-      const timestamp = endTime.toISOString().slice(0, 19).replace(/[T:]/g, '-');
-      filename = `${siteName}_${timestamp}.json`;
+      const domain = this.results.length > 0 ? _extractDomain(this.results[0].url) : 'sito';
+      filename = `${_buildTimestamp(endTime)}_${domain}_a11y.json`;
     }
 
     let totalViolations = 0;
@@ -1390,7 +1378,7 @@ class A11yChecker {
     };
 
     // Salva il file
-    const filepath = path.join(process.cwd(), filename);
+    const filepath = _docsPath(filename);
     fs.writeFileSync(filepath, JSON.stringify(jsonReport, null, 2), 'utf8');
 
     console.log(`\n📄 Report JSON salvato: ${filepath}`);
@@ -1743,8 +1731,7 @@ ecc.
 
     // Genera filename
     const sanitizedSiteName = config.siteName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    const timestamp = endTime.toISOString().slice(0, 19).replace(/[T:]/g, '-');
-    const filename = `${sanitizedSiteName}_${timestamp}_dichiarazione.html`;
+    const filename = `${_buildTimestamp(endTime)}_${sanitizedSiteName}_dichiarazione.html`;
 
     // Genera HTML
     const html = `<!DOCTYPE html>
@@ -1817,7 +1804,7 @@ Violazioni totali rilevate: <strong>${totalViolations}</strong></p>
 </body>
 </html>`;
 
-    const filepath = path.join(process.cwd(), filename);
+    const filepath = _docsPath(filename);
     fs.writeFileSync(filepath, html, 'utf8');
 
     console.log(`\n📄 Dichiarazione di Accessibilità salvata: ${filepath}`);
@@ -2134,10 +2121,9 @@ ${tableRows}
 </html>`;
 
     // Salva il file
-    const timestamp = endTime.toISOString().slice(0, 19).replace(/[T:]/g, '-');
     const siteNameClean = config.siteName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    const filename = `${siteNameClean}_${timestamp}_allegato2.html`;
-    const filepath = path.join(process.cwd(), filename);
+    const filename = `${_buildTimestamp(endTime)}_${siteNameClean}_allegato2.html`;
+    const filepath = _docsPath(filename);
 
     fs.writeFileSync(filepath, html, 'utf8');
     console.log(`\n✅ Allegato 2 AGID generato: ${filename}`);

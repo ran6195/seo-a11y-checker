@@ -4,6 +4,24 @@ const {
 const fs = require('fs');
 const path = require('path');
 
+function _buildTimestamp(date) {
+  return date.toISOString().slice(0, 16).replace(/-/g, '').replace('T', '_').replace(':', '');
+}
+
+function _extractDomain(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  } catch (e) {
+    return 'sito';
+  }
+}
+
+function _docsPath(filename) {
+  const docsDir = path.join(process.cwd(), 'docs');
+  fs.mkdirSync(docsDir, { recursive: true });
+  return path.join(docsDir, filename);
+}
+
 class SEOChecker {
   constructor() {
     this.browser = null;
@@ -1145,8 +1163,8 @@ class SEOChecker {
     const duration = Math.round((endTime - this.startTime) / 1000);
 
     if (!filename) {
-      const timestamp = endTime.toISOString().slice(0, 19).replace(/[T:]/g, '-');
-      filename = `seo-report-${timestamp}.md`;
+      const domain = this.results.length > 0 ? _extractDomain(this.results[0].url) : 'sito';
+      filename = `${_buildTimestamp(endTime)}_${domain}_seo.md`;
     }
 
     let totalIssues = 0;
@@ -1419,7 +1437,7 @@ class SEOChecker {
 `;
 
     // Salva il file
-    const filepath = path.join(process.cwd(), filename);
+    const filepath = _docsPath(filename);
     fs.writeFileSync(filepath, markdown, 'utf8');
 
     console.log(`\n📄 Report Markdown salvato: ${filepath}`);
@@ -1431,8 +1449,8 @@ class SEOChecker {
     const duration = Math.round((endTime - this.startTime) / 1000);
 
     if (!filename) {
-      const timestamp = endTime.toISOString().slice(0, 19).replace(/[T:]/g, '-');
-      filename = `seo-report-${timestamp}.html`;
+      const domain = this.results.length > 0 ? _extractDomain(this.results[0].url) : 'sito';
+      filename = `${_buildTimestamp(endTime)}_${domain}_seo.html`;
     }
 
     let totalIssues = 0;
@@ -2003,7 +2021,7 @@ class SEOChecker {
 </html>`;
 
 // Salva il file
-const filepath = path.join(process.cwd(), filename);
+const filepath = _docsPath(filename);
 fs.writeFileSync(filepath, html, 'utf8');
 
 console.log(`\n📄 Report HTML salvato: ${filepath}`);
@@ -2015,8 +2033,8 @@ const endTime = new Date();
 const duration = Math.round((endTime - this.startTime) / 1000);
 
 if (!filename) {
-  const timestamp = endTime.toISOString().slice(0, 19).replace(/[T:]/g, '-');
-  filename = `seo-report-${timestamp}.json`;
+  const domain = this.results.length > 0 ? _extractDomain(this.results[0].url) : 'sito';
+  filename = `${_buildTimestamp(endTime)}_${domain}_seo.json`;
 }
 
 // Calcola statistiche
@@ -2220,7 +2238,7 @@ const jsonReport = {
 };
 
 // Salva il file
-const filepath = path.join(process.cwd(), filename);
+const filepath = _docsPath(filename);
 fs.writeFileSync(filepath, JSON.stringify(jsonReport, null, 2), 'utf8');
 
 console.log(`\n📄 Report JSON salvato: ${filepath}`);
