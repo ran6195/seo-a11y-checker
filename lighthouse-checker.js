@@ -134,11 +134,23 @@ class LighthouseChecker {
   isValidUrl(url) {
     try {
       const u = new URL(url);
-      return (
-        (u.protocol === 'http:' || u.protocol === 'https:') &&
-        u.hostname.replace(/^www\./, '') === this.baseDomain.replace(/^www\./, '') &&
-        !url.includes('#')
-      );
+
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+      if (u.hostname.replace(/^www\./, '') !== this.baseDomain.replace(/^www\./, '')) return false;
+      if (url.includes('#')) return false;
+
+      const excludedExtensions = [
+        '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+        '.zip', '.rar', '.tar', '.gz',
+        '.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.ico',
+        '.mp4', '.avi', '.mov', '.wmv', '.mp3', '.wav',
+        '.css', '.js', '.xml', '.json', '.txt',
+      ];
+
+      const pathname = u.pathname.toLowerCase();
+      if (excludedExtensions.some(ext => pathname.endsWith(ext))) return false;
+
+      return true;
     } catch {
       return false;
     }
