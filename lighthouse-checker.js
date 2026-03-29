@@ -1,3 +1,4 @@
+const { chromium } = require('playwright');
 const chromeLauncher = require('chrome-launcher');
 const fs = require('fs');
 const path = require('path');
@@ -22,9 +23,145 @@ function _docsPath(filename) {
 
 class LighthouseChecker {
   constructor() {
+    this.browser = null;
+    this.context = null;
+    this.page = null;
     this.results = [];
+    this.visitedPages = new Set();
+    this.pendingPages = new Set();
     this.startTime = new Date();
+    this.baseDomain = null;
+    this.initOptions = {};
   }
+
+  async init(options = {}) {
+    this.initOptions = options;
+    const launchOpts = { headless: true, slowMo: 0 };
+
+    if (options.userDataDir) {
+      this.context = await chromium.launchPersistentContext(options.userDataDir, {
+        ...launchOpts,
+        channel: 'chrome',
+        args: ['--no-first-run', '--disable-blink-features=AutomationControlled'],
+      });
+      this.page = this.context.pages()[0] || await this.context.newPage();
+    } else {
+      this.browser = await chromium.launch(launchOpts);
+      this.page = await this.browser.newPage();
+    }
+  }
+
+  async close() {
+    if (this.browser) { await this.browser.close(); this.browser = null; }
+    if (this.context) { await this.context.close(); this.context = null; }
+    this.page = null;
+  }
+
+  // ─── Crawling ────────────────────────────────────────────────────────────────
+
+  async crawlSite(baseUrl, maxPages = null) {
+    console.log(`\n🕷️  Inizio crawling Lighthouse di: ${baseUrl}`);
+    const urls = await this._collectUrls(baseUrl, maxPages);
+    await this.close(); // libera il browser Playwright prima di avviare Lighthouse
+    await this._runLighthouseOnUrls(urls);
+  }
+
+  async navigateAndCheck(baseUrl, maxPages = 5) {
+    console.log(`\n🔍 Controllo Lighthouse di: ${baseUrl} (max ${maxPages} pagine)`);
+    const urls = await this._collectUrls(baseUrl, maxPages);
+    await this.close();
+    await this._runLighthouseOnUrls(urls);
+  }
+
+  async _collectUrls(baseUrl, maxPages) {
+    this.baseDomain = new URL(baseUrl).hostname;
+    const normalizedBase = this.normalizeUrl(baseUrl);
+    this.pendingPages.add(normalizedBase);
+
+    const urls = [];
+
+    while (this.pendingPages.size > 0 && (maxPages === null || urls.length < maxPages)) {
+      const current = [...this.pendingPages][0];
+      this.pendingPages.delete(current);
+
+      if (this.visitedPages.has(current)) continue;
+      this.visitedPages.add(current);
+      urls.push(current);
+
+      try {
+        await this.page.goto(current, { waitUntil: 'networkidle', timeout: 30000 });
+        const links = await this.discoverLinksOnPage();
+        links.forEach(link => {
+          if (!this.visitedPages.has(link) && !this.pendingPages.has(link)) {
+            this.pendingPages.add(link);
+          }
+        });
+        console.log(`  [${urls.length}${maxPages ? `/${maxPages}` : ''}] Trovata: ${current} (${this.pendingPages.size} in coda)`);
+      } catch (e) {
+        console.warn(`  ⚠️  Errore su ${current}: ${e.message}`);
+      }
+    }
+
+    if (maxPages && this.pendingPages.size > 0) {
+      console.log(`\n🛑 Limite raggiunto (${maxPages} pagine). ${this.pendingPages.size} URL non analizzate.`);
+    }
+
+    console.log(`\n✅ ${urls.length} pagine scoperte. Avvio analisi Lighthouse...\n`);
+    return urls;
+  }
+
+  async _runLighthouseOnUrls(urls) {
+    for (const url of urls) {
+      await this.checkUrl(url, this.initOptions);
+    }
+  }
+
+  async discoverLinksOnPage() {
+    try {
+      const links = await this.page.$$eval('a[href]',
+        els => els.map(el => el.href).filter(h => h && h.trim().length > 0)
+      );
+      return [...new Set(
+        links
+          .filter(link => this.isValidUrl(link))
+          .map(link => this.normalizeUrl(link))
+      )];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  isValidUrl(url) {
+    try {
+      const u = new URL(url);
+      return (
+        (u.protocol === 'http:' || u.protocol === 'https:') &&
+        u.hostname.replace(/^www\./, '') === this.baseDomain.replace(/^www\./, '') &&
+        !url.includes('#')
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  normalizeUrl(url) {
+    try {
+      const u = new URL(url);
+      u.hostname = u.hostname.replace(/^www\./, '');
+      if (u.pathname !== '/' && u.pathname.endsWith('/')) {
+        u.pathname = u.pathname.slice(0, -1);
+      }
+      u.hash = '';
+      ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid', 'gclid'].forEach(p => {
+        u.searchParams.delete(p);
+      });
+      return u.toString();
+    } catch {
+      return url;
+    }
+  }
+
+  // ─── Analisi singola URL ──────────────────────────────────────────────────────
 
   async checkUrl(url, options = {}) {
     const { default: lighthouse } = await import('lighthouse');
