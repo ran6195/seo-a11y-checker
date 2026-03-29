@@ -192,6 +192,7 @@ class LighthouseChecker {
         output: 'json',
         onlyCategories: ['performance', 'accessibility', 'seo', 'best-practices'],
         logLevel: 'error',
+        locale: 'it',
       };
 
       const runnerResult = await lighthouse(url, lhOptions);
