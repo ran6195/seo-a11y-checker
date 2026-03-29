@@ -996,113 +996,183 @@ class A11yChecker {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Report Accessibilità - ${endTime.toLocaleDateString('it-IT')}</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             line-height: 1.6;
-            color: #333;
-            max-width: 1200px;
+            color: #111827;
+            max-width: 1100px;
             margin: 0 auto;
-            padding: 20px;
-            background: #f5f5f5;
+            padding: 32px 20px;
+            background: #f0f2f5;
         }
 
+        /* Header */
         h1 {
-            background: #2c3e50;
-            color: white;
-            padding: 20px;
-            border-radius: 5px;
-            margin-bottom: 10px;
+            background: #ffffff;
+            color: #111827;
+            padding: 28px 32px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 1.75rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            border: 1px solid #e5e7eb;
+            border-top: 4px solid #1e3a5f;
         }
 
+        /* Summary block */
         .summary {
-            background: white;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            border-left: 4px solid #3498db;
+            background: #ffffff;
+            padding: 20px 24px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            border: 1px solid #e5e7eb;
+            border-left: 4px solid #1e3a5f;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            font-size: 0.9rem;
+            color: #374151;
+            line-height: 1.8;
         }
 
+        .summary strong {
+            color: #111827;
+        }
+
+        /* Page cards */
         .page {
-            background: white;
-            padding: 20px;
+            background: #ffffff;
+            padding: 0;
             margin-bottom: 20px;
-            border-radius: 5px;
-            border-left: 4px solid #e74c3c;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            border-left: 4px solid #dc2626;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            overflow: hidden;
         }
 
         .page.no-violations {
-            border-left-color: #2ecc71;
+            border-left-color: #16a34a;
         }
 
         .page-url {
-            font-size: 1.2em;
-            font-weight: bold;
-            margin-bottom: 15px;
-            color: #2c3e50;
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 14px 20px;
+            color: #111827;
             word-break: break-all;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
         }
 
+        /* Page inner content padding */
+        .page > p,
+        .page > .elements-list {
+            padding: 16px 20px 0;
+        }
+
+        .page > p:last-child {
+            padding-bottom: 16px;
+        }
+
+        /* Violations */
         .violation {
-            background: #fff5f5;
-            border-left: 3px solid #e74c3c;
-            padding: 15px;
-            margin-bottom: 15px;
-            border-radius: 3px;
+            background: #fef2f2;
+            border-left: 3px solid #dc2626;
+            padding: 14px 16px;
+            margin: 12px 20px;
+            border-radius: 6px;
+        }
+
+        .violation:last-child {
+            margin-bottom: 16px;
         }
 
         .violation-header {
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: #c0392b;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: #7f1d1d;
+            font-size: 0.875rem;
         }
 
         .violation-description {
-            margin-bottom: 10px;
-            color: #555;
+            margin-bottom: 8px;
+            color: #374151;
+            font-size: 0.875rem;
         }
 
         .violation-info {
-            font-size: 0.9em;
-            color: #666;
-            margin-bottom: 10px;
+            font-size: 0.8rem;
+            color: #6b7280;
+            margin-bottom: 8px;
         }
 
+        /* Elements list */
         .elements-list {
-            margin-top: 10px;
+            margin-top: 8px;
         }
 
         .element {
-            background: #f8f9fa;
-            border-left: 3px solid #95a5a6;
-            padding: 10px;
-            margin: 5px 0;
-            font-family: monospace;
-            font-size: 0.9em;
+            background: #f9fafb;
+            border-left: 3px solid #d1d5db;
+            padding: 8px 12px;
+            margin: 4px 0;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.82rem;
+            border-radius: 4px;
         }
 
         .selector {
-            color: #16a085;
-            font-weight: bold;
+            color: #1e3a5f;
+            font-weight: 700;
         }
 
         .html-snippet {
-            color: #7f8c8d;
-            margin-top: 5px;
+            color: #6b7280;
+            margin-top: 4px;
             white-space: pre-wrap;
             word-break: break-all;
+            font-size: 0.8rem;
         }
 
+        /* Score badge */
         .score {
             display: inline-block;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-weight: bold;
-            color: white;
+            padding: 3px 12px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 0.82rem;
+            letter-spacing: 0.03em;
+            color: #ffffff;
         }
 
-        .score-high { background: #2ecc71; }
-        .score-medium { background: #f39c12; }
-        .score-low { background: #e74c3c; }
+        .score-high { background: #16a34a; }
+        .score-medium { background: #d97706; }
+        .score-low { background: #dc2626; }
+
+        /* Print */
+        @media print {
+            body { background: #ffffff; padding: 0; }
+            .page, .summary {
+                box-shadow: none;
+                break-inside: avoid;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 16px 12px; }
+            h1 { font-size: 1.4rem; padding: 20px; }
+            .violation { margin: 10px 12px; }
+        }
     </style>
 </head>
 <body>
