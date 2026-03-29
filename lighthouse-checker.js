@@ -1,0 +1,572 @@
+const chromeLauncher = require('chrome-launcher');
+const fs = require('fs');
+const path = require('path');
+
+function _buildTimestamp(date) {
+  return date.toISOString().slice(0, 16).replace(/-/g, '').replace('T', '_').replace(':', '');
+}
+
+function _extractDomain(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  } catch (e) {
+    return 'sito';
+  }
+}
+
+function _docsPath(filename) {
+  const docsDir = path.join(process.cwd(), 'docs');
+  fs.mkdirSync(docsDir, { recursive: true });
+  return path.join(docsDir, filename);
+}
+
+class LighthouseChecker {
+  constructor() {
+    this.results = [];
+    this.startTime = new Date();
+  }
+
+  async checkUrl(url, options = {}) {
+    const { default: lighthouse } = await import('lighthouse');
+
+    const chromeFlags = ['--headless=new', '--disable-gpu'];
+    if (options.userDataDir) {
+      chromeFlags.push(`--user-data-dir=${options.userDataDir}`);
+    }
+
+    console.log(`\n🔍 Analisi Lighthouse: ${url}`);
+    const chrome = await chromeLauncher.launch({ chromeFlags });
+
+    try {
+      const lhOptions = {
+        port: chrome.port,
+        output: 'json',
+        onlyCategories: ['performance', 'accessibility', 'seo', 'best-practices'],
+        logLevel: 'error',
+      };
+
+      const runnerResult = await lighthouse(url, lhOptions);
+      const lhr = runnerResult.lhr;
+
+      const result = {
+        url,
+        fetchTime: lhr.fetchTime,
+        scores: {
+          performance:    Math.round((lhr.categories.performance?.score    ?? 0) * 100),
+          accessibility:  Math.round((lhr.categories.accessibility?.score  ?? 0) * 100),
+          seo:            Math.round((lhr.categories.seo?.score            ?? 0) * 100),
+          bestPractices:  Math.round((lhr.categories['best-practices']?.score ?? 0) * 100),
+        },
+        metrics: {
+          lcp:        lhr.audits['largest-contentful-paint']?.displayValue ?? 'N/A',
+          fcp:        lhr.audits['first-contentful-paint']?.displayValue   ?? 'N/A',
+          tbt:        lhr.audits['total-blocking-time']?.displayValue      ?? 'N/A',
+          cls:        lhr.audits['cumulative-layout-shift']?.displayValue  ?? 'N/A',
+          tti:        lhr.audits['interactive']?.displayValue              ?? 'N/A',
+          speedIndex: lhr.audits['speed-index']?.displayValue             ?? 'N/A',
+        },
+        failedAudits: this._extractFailedAudits(lhr),
+      };
+
+      this._printSummary(result);
+      this.results.push(result);
+      return result;
+
+    } finally {
+      await chrome.kill();
+    }
+  }
+
+  _extractFailedAudits(lhr) {
+    return Object.values(lhr.audits)
+      .filter(a =>
+        a.score !== null &&
+        a.score < 0.9 &&
+        a.scoreDisplayMode !== 'informative' &&
+        a.scoreDisplayMode !== 'manual' &&
+        a.scoreDisplayMode !== 'notApplicable'
+      )
+      .map(a => ({
+        id: a.id,
+        title: a.title,
+        description: a.description ? a.description.split('\n')[0].replace(/\[.*?\]\(.*?\)/g, '').trim() : '',
+        score: Math.round((a.score ?? 0) * 100),
+        displayValue: a.displayValue ?? '',
+      }))
+      .sort((a, b) => a.score - b.score);
+  }
+
+  _printSummary(result) {
+    const s = result.scores;
+    const m = result.metrics;
+    console.log(`  Performance:    ${this._scoreEmoji(s.performance)}  ${s.performance}`);
+    console.log(`  Accessibility:  ${this._scoreEmoji(s.accessibility)}  ${s.accessibility}`);
+    console.log(`  SEO:            ${this._scoreEmoji(s.seo)}  ${s.seo}`);
+    console.log(`  Best Practices: ${this._scoreEmoji(s.bestPractices)}  ${s.bestPractices}`);
+    console.log(`  LCP: ${m.lcp}  |  CLS: ${m.cls}  |  TBT: ${m.tbt}`);
+  }
+
+  _scoreEmoji(score) {
+    if (score >= 90) return '🟢';
+    if (score >= 50) return '🟡';
+    return '🔴';
+  }
+
+  _scoreClass(score) {
+    if (score >= 90) return 'high';
+    if (score >= 50) return 'medium';
+    return 'low';
+  }
+
+  generateHTMLReport(filename = null) {
+    const endTime = new Date();
+    if (!filename) {
+      const domain = this.results.length > 0 ? _extractDomain(this.results[0].url) : 'sito';
+      filename = `${_buildTimestamp(endTime)}_${domain}_lighthouse.html`;
+    }
+    const html = this._buildHTML(endTime);
+    const filepath = _docsPath(filename);
+    fs.writeFileSync(filepath, html, 'utf8');
+    console.log(`\n📄 Report HTML salvato: ${filepath}`);
+    return filepath;
+  }
+
+  generateJSONReport(filename = null) {
+    const endTime = new Date();
+    if (!filename) {
+      const domain = this.results.length > 0 ? _extractDomain(this.results[0].url) : 'sito';
+      filename = `${_buildTimestamp(endTime)}_${domain}_lighthouse.json`;
+    }
+    const json = {
+      generatedAt: endTime.toISOString(),
+      duration: Math.round((endTime - this.startTime) / 1000),
+      results: this.results.map(({ url, fetchTime, scores, metrics, failedAudits }) => ({
+        url,
+        fetchTime,
+        scores,
+        metrics,
+        failedAuditsCount: failedAudits.length,
+        failedAudits,
+      })),
+    };
+    const filepath = _docsPath(filename);
+    fs.writeFileSync(filepath, JSON.stringify(json, null, 2), 'utf8');
+    console.log(`📄 Report JSON salvato: ${filepath}`);
+    return filepath;
+  }
+
+  _buildHTML(endTime) {
+    const duration = Math.round((endTime - this.startTime) / 1000);
+    const n = this.results.length;
+
+    const avg = (key) =>
+      n > 0 ? Math.round(this.results.reduce((s, r) => s + r.scores[key], 0) / n) : 0;
+
+    const avgScores = {
+      performance:   avg('performance'),
+      accessibility: avg('accessibility'),
+      seo:           avg('seo'),
+      bestPractices: avg('bestPractices'),
+    };
+
+    const firstMetrics = n > 0 ? this.results[0].metrics : {};
+    const domain = n > 0 ? new URL(this.results[0].url).hostname.replace(/^www\./, '') : '';
+
+    const scoreRing = (score, label) => `
+      <div class="score-card">
+        <div class="score-ring ${this._scoreClass(score)}">${score}</div>
+        <div class="score-label">${label}</div>
+      </div>`;
+
+    const metricCard = (value, label, desc) => `
+      <div class="metric-card">
+        <div class="metric-value">${value}</div>
+        <div class="metric-label">${label}</div>
+        <div class="metric-desc">${desc}</div>
+      </div>`;
+
+    const pagesTable = n > 1 ? `
+      <div class="section">
+        <h2 class="section-title">Dettaglio pagine</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>URL</th>
+                <th>Performance</th>
+                <th>Accessibility</th>
+                <th>SEO</th>
+                <th>Best Practices</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${this.results.map(r => `
+              <tr>
+                <td class="url-cell">${r.url}</td>
+                <td><span class="badge ${this._scoreClass(r.scores.performance)}">${r.scores.performance}</span></td>
+                <td><span class="badge ${this._scoreClass(r.scores.accessibility)}">${r.scores.accessibility}</span></td>
+                <td><span class="badge ${this._scoreClass(r.scores.seo)}">${r.scores.seo}</span></td>
+                <td><span class="badge ${this._scoreClass(r.scores.bestPractices)}">${r.scores.bestPractices}</span></td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>` : '';
+
+    const auditSections = this.results.map((r, i) => {
+      if (r.failedAudits.length === 0) {
+        return `
+        <div class="page-audits">
+          ${n > 1 ? `<div class="page-url-label">Pagina ${i + 1}: ${r.url}</div>` : ''}
+          <p class="no-issues">✅ Nessun audit fallito</p>
+        </div>`;
+      }
+      return `
+      <div class="page-audits">
+        ${n > 1 ? `<div class="page-url-label">Pagina ${i + 1}: ${r.url}</div>` : ''}
+        ${r.failedAudits.map(a => `
+        <div class="audit-item ${this._scoreClass(a.score)}">
+          <div class="audit-header">
+            <span class="audit-score ${this._scoreClass(a.score)}">${a.score}</span>
+            <span class="audit-title">${a.title}</span>
+            ${a.displayValue ? `<span class="audit-value">${a.displayValue}</span>` : ''}
+          </div>
+          ${a.description ? `<div class="audit-desc">${a.description}</div>` : ''}
+        </div>`).join('')}
+      </div>`;
+    }).join('');
+
+    return `<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lighthouse Report — ${domain}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      color: #111827;
+      background: #f0f2f5;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 20px;
+    }
+
+    /* Header */
+    .header {
+      background: #fff;
+      border-top: 4px solid #1e3a5f;
+      border-radius: 6px;
+      padding: 32px 36px;
+      margin-bottom: 24px;
+      border: 1px solid #e5e7eb;
+      border-top: 4px solid #1e3a5f;
+    }
+
+    .header-eyebrow {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+
+    .header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 6px;
+    }
+
+    .header-meta {
+      font-size: 0.875rem;
+      color: #6b7280;
+    }
+
+    /* Section */
+    .section {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 28px 32px;
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #6b7280;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    /* Score rings */
+    .scores-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .score-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .score-ring {
+      width: 84px;
+      height: 84px;
+      border-radius: 50%;
+      border: 7px solid;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+
+    .score-ring.high  { border-color: #16a34a; color: #16a34a; }
+    .score-ring.medium { border-color: #d97706; color: #d97706; }
+    .score-ring.low   { border-color: #dc2626; color: #dc2626; }
+
+    .score-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #374151;
+      text-align: center;
+    }
+
+    /* Metrics */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .metric-card {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 16px;
+    }
+
+    .metric-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 2px;
+    }
+
+    .metric-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #1e3a5f;
+      margin-bottom: 2px;
+    }
+
+    .metric-desc {
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    th {
+      background: #f9fafb;
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #6b7280;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid #f3f4f6;
+      color: #374151;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+
+    .url-cell {
+      font-size: 0.8rem;
+      word-break: break-all;
+      color: #6b7280;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .badge.high   { background: #dcfce7; color: #15803d; }
+    .badge.medium { background: #fef9c3; color: #a16207; }
+    .badge.low    { background: #fee2e2; color: #b91c1c; }
+
+    /* Audits */
+    .page-url-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #6b7280;
+      margin-bottom: 12px;
+      word-break: break-all;
+    }
+
+    .audit-item {
+      border: 1px solid #e5e7eb;
+      border-left: 3px solid;
+      border-radius: 4px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+    }
+
+    .audit-item.high   { border-left-color: #16a34a; }
+    .audit-item.medium { border-left-color: #d97706; }
+    .audit-item.low    { border-left-color: #dc2626; }
+
+    .audit-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .audit-score {
+      min-width: 32px;
+      text-align: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    .audit-score.high   { background: #dcfce7; color: #15803d; }
+    .audit-score.medium { background: #fef9c3; color: #a16207; }
+    .audit-score.low    { background: #fee2e2; color: #b91c1c; }
+
+    .audit-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #111827;
+      flex: 1;
+    }
+
+    .audit-value {
+      font-size: 0.8rem;
+      color: #6b7280;
+      white-space: nowrap;
+    }
+
+    .audit-desc {
+      font-size: 0.8rem;
+      color: #6b7280;
+      padding-left: 42px;
+    }
+
+    .no-issues {
+      color: #16a34a;
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 16px;
+      font-size: 0.8rem;
+      color: #9ca3af;
+    }
+
+    @media (max-width: 768px) {
+      .scores-grid  { grid-template-columns: repeat(2, 1fr); }
+      .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .container { padding: 0; }
+      .section { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="header-eyebrow">🔦 Lighthouse Report</div>
+    <h1>${domain}</h1>
+    <div class="header-meta">
+      ${endTime.toLocaleDateString('it-IT')} alle ${endTime.toLocaleTimeString('it-IT')}
+      &nbsp;·&nbsp; ${n} ${n === 1 ? 'pagina' : 'pagine'} analizzate
+      &nbsp;·&nbsp; ${duration}s
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Punteggi ${n > 1 ? '(media)' : ''}</div>
+    <div class="scores-grid">
+      ${scoreRing(avgScores.performance,   'Performance')}
+      ${scoreRing(avgScores.accessibility, 'Accessibility')}
+      ${scoreRing(avgScores.seo,           'SEO')}
+      ${scoreRing(avgScores.bestPractices, 'Best Practices')}
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Core Web Vitals ${n > 1 ? '(prima pagina)' : ''}</div>
+    <div class="metrics-grid">
+      ${metricCard(firstMetrics.lcp,        'LCP',         'Largest Contentful Paint')}
+      ${metricCard(firstMetrics.fcp,        'FCP',         'First Contentful Paint')}
+      ${metricCard(firstMetrics.tbt,        'TBT',         'Total Blocking Time')}
+      ${metricCard(firstMetrics.cls,        'CLS',         'Cumulative Layout Shift')}
+      ${metricCard(firstMetrics.tti,        'TTI',         'Time to Interactive')}
+      ${metricCard(firstMetrics.speedIndex, 'Speed Index', 'Indice di velocità')}
+    </div>
+  </div>
+
+  ${pagesTable}
+
+  <div class="section">
+    <div class="section-title">Audit falliti o con avvisi</div>
+    ${auditSections}
+  </div>
+
+  <div class="footer">
+    Report generato con Lighthouse Checker · Playwright + Google Lighthouse
+  </div>
+
+</div>
+</body>
+</html>`;
+  }
+}
+
+module.exports = { LighthouseChecker };
