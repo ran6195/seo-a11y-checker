@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path');
 
 function _buildTimestamp(date) {
-  return date.toISOString().slice(0, 16).replace(/-/g, '').replace('T', '_').replace(':', '');
+  const p = n => String(n).padStart(2, '0');
+  return `${date.getFullYear()}${p(date.getMonth()+1)}${p(date.getDate())}_${p(date.getHours())}${p(date.getMinutes())}`;
 }
 
 function _extractDomain(url) {

@@ -189,7 +189,8 @@ Esempi:
   // Generate output filenames
   const csvStem = csvPath.replace(/.*[\\/]/, '').replace(/\.[^.]*$/, '').replace(/[^a-z0-9]/gi, '_').toLowerCase();
   const now = new Date();
-  const ts = now.toISOString().slice(0, 16).replace(/-/g, '').replace('T', '_').replace(':', '');
+  const p = n => String(n).padStart(2, '0');
+  const ts = `${now.getFullYear()}${p(now.getMonth()+1)}${p(now.getDate())}_${p(now.getHours())}${p(now.getMinutes())}`;
   const baseName = options.output || `${ts}_${csvStem}_a11y`;
 
   const checker = new A11yFromCSV();
