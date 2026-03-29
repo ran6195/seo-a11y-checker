@@ -85,21 +85,28 @@ Utilizzo:
   node lighthouse-cli.js <url> [opzioni]
 
 Opzioni:
-  -p, --pages <numero>   Numero massimo di pagine da analizzare (default: 5)
-  -c, --crawl            Crawling completo del sito (ignora -p)
-  -o, --output <file>    Nome file di output (senza estensione)
-  -f, --format <tipo>    Formato: html, json, all (default: all)
-  -h, --headless         Headless per la fase di crawling (Lighthouse è sempre headless)
-  --no-profile           Non usare profilo Chrome (usa Chromium per il crawling)
-  --profile <path>       Percorso specifico profilo Chrome
-  --select-profile       Scegli profilo Chrome da lista
-  --help                 Mostra questo messaggio
+  -p, --pages <numero>         Numero massimo di pagine da analizzare (default: 5)
+  -c, --crawl                  Crawling completo del sito (ignora -p)
+  -o, --output <file>          Nome file di output (senza estensione)
+  -f, --format <tipo>          Formato: html, json, all (default: all)
+  -h, --headless               Headless per la fase di crawling (Lighthouse è sempre headless)
+  --categories <lista>         Categorie Lighthouse separate da virgola (default: tutte)
+                               Valori: performance, accessibility, seo, best-practices
+  --device <tipo>              Dispositivo emulato: mobile (default) o desktop
+  --throttling <metodo>        Metodo throttling: simulate (default), devtools, none
+  --no-profile                 Non usare profilo Chrome (usa Chromium per il crawling)
+  --profile <path>             Percorso specifico profilo Chrome
+  --select-profile             Scegli profilo Chrome da lista
+  --help                       Mostra questo messaggio
 
 Esempi:
   node lighthouse-cli.js https://esempio.it
   node lighthouse-cli.js https://esempio.it -p 10
   node lighthouse-cli.js https://esempio.it --crawl
   node lighthouse-cli.js https://esempio.it --crawl -f html
+  node lighthouse-cli.js https://esempio.it --device desktop
+  node lighthouse-cli.js https://esempio.it --categories performance,seo
+  node lighthouse-cli.js https://esempio.it --throttling none
   node lighthouse-cli.js https://esempio.it --no-profile
   node lighthouse-cli.js https://esempio.it --select-profile
 
@@ -128,6 +135,9 @@ function parseArgs() {
     useProfile: true,
     selectProfile: false,
     profilePath: null,
+    categories: null,
+    device: 'mobile',
+    throttling: 'simulate',
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -153,6 +163,15 @@ function parseArgs() {
         break;
       case '-h': case '--headless':
         options.headless = true;
+        break;
+      case '--categories':
+        options.categories = args[++i].split(',').map(s => s.trim()).filter(Boolean);
+        break;
+      case '--device':
+        options.device = args[++i];
+        break;
+      case '--throttling':
+        options.throttling = args[++i] === 'none' ? 'provided' : args[i];
         break;
       case '--no-profile':
         options.useProfile = false;
@@ -202,8 +221,15 @@ async function main() {
   // init() è necessario solo se si fa crawling
   const needsCrawl = options.crawl || options.pages > 1;
 
+  const lighthouseOptions = {
+    userDataDir,
+    categories: options.categories,
+    device: options.device,
+    throttling: options.throttling,
+  };
+
   if (needsCrawl) {
-    await checker.init({ userDataDir, headless: options.headless });
+    await checker.init({ userDataDir, headless: options.headless, ...lighthouseOptions });
   }
 
   try {
@@ -213,7 +239,7 @@ async function main() {
       await checker.navigateAndCheck(options.url, options.pages);
     } else {
       // Singola pagina: nessun crawling, Lighthouse diretto
-      await checker.checkUrl(options.url, { userDataDir });
+      await checker.checkUrl(options.url, lighthouseOptions);
     }
 
     const fmt = options.format;

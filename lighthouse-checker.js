@@ -188,13 +188,37 @@ class LighthouseChecker {
     const chrome = await chromeLauncher.launch({ chromeFlags });
 
     try {
+      const categories = options.categories || ['performance', 'accessibility', 'seo', 'best-practices'];
+      const device = options.device || 'mobile';
+      const throttlingMethod = options.throttling || 'simulate';
+
       const lhOptions = {
         port: chrome.port,
         output: 'json',
-        onlyCategories: ['performance', 'accessibility', 'seo', 'best-practices'],
+        onlyCategories: categories,
         logLevel: 'error',
         locale: 'it',
+        throttlingMethod,
       };
+
+      if (device === 'desktop') {
+        lhOptions.formFactor = 'desktop';
+        lhOptions.screenEmulation = {
+          mobile: false,
+          width: 1350,
+          height: 940,
+          deviceScaleFactor: 1,
+          disabled: false,
+        };
+        lhOptions.throttling = {
+          rttMs: 40,
+          throughputKbps: 10 * 1024,
+          cpuSlowdownMultiplier: 1,
+          requestLatencyMs: 0,
+          downloadThroughputKbps: 0,
+          uploadThroughputKbps: 0,
+        };
+      }
 
       const runnerResult = await lighthouse(url, lhOptions);
       const lhr = runnerResult.lhr;
