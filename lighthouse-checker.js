@@ -226,6 +226,67 @@ class LighthouseChecker {
     }
   }
 
+  _getAuditCategory(id) {
+    const map = {
+      // Server / Infrastruttura
+      'server-response-time': 'server',
+      'uses-text-compression': 'server',
+      'uses-long-cache-ttl': 'server',
+      'uses-http2': 'server',
+      'redirects': 'server',
+      'total-byte-weight': 'server',
+      'network-rtt': 'server',
+      'network-server-latency': 'server',
+      // Immagini
+      'uses-optimized-images': 'immagini',
+      'uses-responsive-images': 'immagini',
+      'offscreen-images': 'immagini',
+      'uses-webp-images': 'immagini',
+      'modern-image-formats': 'immagini',
+      'image-size-responsive': 'immagini',
+      'image-aspect-ratio': 'immagini',
+      'unsized-images': 'immagini',
+      'efficient-animated-content': 'immagini',
+      // JavaScript / CSS
+      'unused-javascript': 'js-css',
+      'unused-css-rules': 'js-css',
+      'render-blocking-resources': 'js-css',
+      'bootup-time': 'js-css',
+      'mainthread-work-breakdown': 'js-css',
+      'third-party-summary': 'js-css',
+      'third-party-facades': 'js-css',
+      'no-document-write': 'js-css',
+      'uses-passive-event-listeners': 'js-css',
+      'dom-size': 'js-css',
+      'unminified-javascript': 'js-css',
+      'unminified-css': 'js-css',
+      'duplicated-javascript': 'js-css',
+      'legacy-javascript': 'js-css',
+      'long-tasks': 'js-css',
+      // HTML / Font
+      'font-display': 'html',
+      'bf-cache': 'html',
+      'uses-rel-preconnect': 'html',
+      'preload-lcp-image': 'html',
+      'errors-in-console': 'html',
+      'valid-source-maps': 'html',
+      'meta-description': 'html',
+      'document-title': 'html',
+      'html-has-lang': 'html',
+    };
+    return map[id] || 'altro';
+  }
+
+  _getAuditOwner(category) {
+    return {
+      server:    'DevOps / Hosting',
+      immagini:  'Frontend / CMS',
+      'js-css':  'Frontend',
+      html:      'Frontend / CMS',
+      altro:     '—',
+    }[category] || '—';
+  }
+
   _extractFailedAudits(lhr) {
     return Object.values(lhr.audits)
       .filter(a =>
@@ -241,6 +302,9 @@ class LighthouseChecker {
         description: a.description ? a.description.split('\n')[0].replace(/\[.*?\]\(.*?\)/g, '').trim() : '',
         score: Math.round((a.score ?? 0) * 100),
         displayValue: a.displayValue ?? '',
+        savingsBytes: a.details?.overallSavingsBytes ?? null,
+        savingsMs:    a.details?.overallSavingsMs    ?? null,
+        category:     this._getAuditCategory(a.id),
       }))
       .sort((a, b) => a.score - b.score);
   }
@@ -362,6 +426,78 @@ class LighthouseChecker {
         </div>
       </div>` : '';
 
+    // ── Piano d'azione ───────────────────────────────────────────────────────────
+    // Raccoglie tutti gli audit unici da tutte le pagine, ordinati per impatto
+    const allAuditsMap = new Map();
+    this.results.forEach(r => {
+      r.failedAudits.forEach(a => {
+        if (!allAuditsMap.has(a.id) || a.score < allAuditsMap.get(a.id).score) {
+          allAuditsMap.set(a.id, a);
+        }
+      });
+    });
+
+    const actionAudits = [...allAuditsMap.values()].sort((a, b) => {
+      // Prima per risparmio bytes (desc), poi ms (desc), poi score (asc)
+      const bytesA = a.savingsBytes ?? -1;
+      const bytesB = b.savingsBytes ?? -1;
+      if (bytesB !== bytesA) return bytesB - bytesA;
+      const msA = a.savingsMs ?? -1;
+      const msB = b.savingsMs ?? -1;
+      if (msB !== msA) return msB - msA;
+      return a.score - b.score;
+    });
+
+    const impactLabel = (a) => {
+      if (a.savingsBytes && a.savingsBytes > 0) {
+        const kb = Math.round(a.savingsBytes / 1024);
+        return `<span class="impact-bytes">−${kb} KiB</span>`;
+      }
+      if (a.savingsMs && a.savingsMs > 0) {
+        return `<span class="impact-ms">−${Math.round(a.savingsMs)} ms</span>`;
+      }
+      return `<span class="impact-none">${a.displayValue || '—'}</span>`;
+    };
+
+    const catMeta = {
+      server:   { label: 'Server / Infrastruttura', icon: '🖥️' },
+      immagini: { label: 'Immagini',                icon: '🖼️' },
+      'js-css': { label: 'JavaScript / CSS',        icon: '⚙️' },
+      html:     { label: 'HTML / Font',             icon: '📄' },
+      altro:    { label: 'Altro',                   icon: '📋' },
+    };
+
+    const actionPlanSection = actionAudits.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Piano d'azione</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Problema</th>
+                <th>Area</th>
+                <th>Responsabile</th>
+                <th>Risparmio stimato</th>
+                <th>Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${actionAudits.map((a, i) => `
+              <tr>
+                <td class="priority-num">${i + 1}</td>
+                <td class="audit-title-cell">${a.title}</td>
+                <td><span class="cat-pill cat-${a.category}">${catMeta[a.category]?.icon ?? ''} ${catMeta[a.category]?.label ?? a.category}</span></td>
+                <td class="owner-cell">${this._getAuditOwner(a.category)}</td>
+                <td>${impactLabel(a)}</td>
+                <td><span class="badge ${this._scoreClass(a.score)}">${a.score}</span></td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>` : '';
+
+    // ── Audit raggruppati per categoria ───────────────────────────────────────
     const auditSections = this.results.map((r, i) => {
       if (r.failedAudits.length === 0) {
         return `
@@ -370,18 +506,38 @@ class LighthouseChecker {
           <p class="no-issues">✅ Nessun audit fallito</p>
         </div>`;
       }
+
+      // Raggruppa per categoria
+      const groups = {};
+      r.failedAudits.forEach(a => {
+        if (!groups[a.category]) groups[a.category] = [];
+        groups[a.category].push(a);
+      });
+
+      const groupedHTML = Object.entries(catMeta)
+        .filter(([key]) => groups[key]?.length > 0)
+        .map(([key, meta]) => `
+        <div class="audit-group">
+          <div class="audit-group-header">
+            <span class="audit-group-icon">${meta.icon}</span>
+            <span>${meta.label}</span>
+            <span class="audit-group-count">${groups[key].length}</span>
+          </div>
+          ${groups[key].map(a => `
+          <div class="audit-item ${this._scoreClass(a.score)}">
+            <div class="audit-header">
+              <span class="audit-score ${this._scoreClass(a.score)}">${a.score}</span>
+              <span class="audit-title">${a.title}</span>
+              ${a.displayValue ? `<span class="audit-value">${a.displayValue}</span>` : ''}
+            </div>
+            ${a.description ? `<div class="audit-desc">${a.description}</div>` : ''}
+          </div>`).join('')}
+        </div>`).join('');
+
       return `
       <div class="page-audits">
         ${n > 1 ? `<div class="page-url-label">Pagina ${i + 1}: ${r.url}</div>` : ''}
-        ${r.failedAudits.map(a => `
-        <div class="audit-item ${this._scoreClass(a.score)}">
-          <div class="audit-header">
-            <span class="audit-score ${this._scoreClass(a.score)}">${a.score}</span>
-            <span class="audit-title">${a.title}</span>
-            ${a.displayValue ? `<span class="audit-value">${a.displayValue}</span>` : ''}
-          </div>
-          ${a.description ? `<div class="audit-desc">${a.description}</div>` : ''}
-        </div>`).join('')}
+        ${groupedHTML}
       </div>`;
     }).join('');
 
@@ -646,6 +802,78 @@ class LighthouseChecker {
       font-size: 0.875rem;
     }
 
+    /* Action plan */
+    .priority-num {
+      font-weight: 700;
+      color: #9ca3af;
+      font-size: 0.8rem;
+      width: 28px;
+    }
+
+    .audit-title-cell {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #111827;
+    }
+
+    .owner-cell {
+      font-size: 0.8rem;
+      color: #6b7280;
+      white-space: nowrap;
+    }
+
+    .cat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .cat-server   { background: #eff6ff; color: #1d4ed8; }
+    .cat-immagini { background: #f0fdf4; color: #15803d; }
+    .cat-js-css   { background: #fefce8; color: #a16207; }
+    .cat-html     { background: #fdf4ff; color: #7e22ce; }
+    .cat-altro    { background: #f9fafb; color: #6b7280; }
+
+    .impact-bytes { font-weight: 700; color: #dc2626; font-size: 0.8rem; }
+    .impact-ms    { font-weight: 700; color: #d97706; font-size: 0.8rem; }
+    .impact-none  { color: #9ca3af;   font-size: 0.8rem; }
+
+    /* Audit groups */
+    .audit-group {
+      margin-bottom: 20px;
+    }
+
+    .audit-group-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #374151;
+      padding: 8px 0;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .audit-group-icon { font-size: 1rem; }
+
+    .audit-group-count {
+      margin-left: auto;
+      background: #f3f4f6;
+      color: #6b7280;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 1px 7px;
+      border-radius: 10px;
+    }
+
     /* Footer */
     .footer {
       text-align: center;
@@ -703,8 +931,10 @@ class LighthouseChecker {
 
   ${pagesTable}
 
+  ${actionPlanSection}
+
   <div class="section">
-    <div class="section-title">Audit falliti o con avvisi</div>
+    <div class="section-title">Audit per categoria</div>
     ${auditSections}
   </div>
 
