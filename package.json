@@ -2,11 +2,12 @@
   "scripts": {
     "seo": "node seo-cli.js",
     "a11y": "node a11y-cli.js",
-    "lighthouse": "node lighthouse-cli.js"
+    "lighthouse": "node lighthouse-cli.js",
+    "a11y-from-json": "node a11y-from-json.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
-    "axe-core": "^4.11.0",
+    "axe-core": "^4.11.4",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "lighthouse": "^10.4.0",
