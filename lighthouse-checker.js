@@ -23,6 +23,16 @@ function _docsPath(filename) {
   return path.join(docsDir, filename);
 }
 
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 class LighthouseChecker {
   constructor() {
     this.browser = null;
@@ -457,7 +467,7 @@ class LighthouseChecker {
             <tbody>
               ${this.results.map(r => `
               <tr>
-                <td class="url-cell">${r.url}</td>
+                <td class="url-cell">${escHtml(r.url)}</td>
                 <td><span class="badge ${this._scoreClass(r.scores.performance)}">${r.scores.performance}</span></td>
                 <td><span class="badge ${this._scoreClass(r.scores.accessibility)}">${r.scores.accessibility}</span></td>
                 <td><span class="badge ${this._scoreClass(r.scores.seo)}">${r.scores.seo}</span></td>
@@ -498,7 +508,7 @@ class LighthouseChecker {
       if (a.savingsMs && a.savingsMs > 0) {
         return `<span class="impact-ms">−${Math.round(a.savingsMs)} ms</span>`;
       }
-      return `<span class="impact-none">${a.displayValue || '—'}</span>`;
+      return `<span class="impact-none">${escHtml(a.displayValue) || '—'}</span>`;
     };
 
     const catMeta = {
@@ -528,7 +538,7 @@ class LighthouseChecker {
               ${actionAudits.map((a, i) => `
               <tr>
                 <td class="priority-num">${i + 1}</td>
-                <td class="audit-title-cell">${a.title}</td>
+                <td class="audit-title-cell">${escHtml(a.title)}</td>
                 <td><span class="cat-pill cat-${a.category}">${catMeta[a.category]?.icon ?? ''} ${catMeta[a.category]?.label ?? a.category}</span></td>
                 <td class="owner-cell">${this._getAuditOwner(a.category)}</td>
                 <td>${impactLabel(a)}</td>
@@ -544,7 +554,7 @@ class LighthouseChecker {
       if (r.failedAudits.length === 0) {
         return `
         <div class="page-audits">
-          ${n > 1 ? `<div class="page-url-label">Pagina ${i + 1}: ${r.url}</div>` : ''}
+          ${n > 1 ? `<div class="page-url-label">Pagina ${i + 1}: ${escHtml(r.url)}</div>` : ''}
           <p class="no-issues">✅ Nessun audit fallito</p>
         </div>`;
       }
@@ -569,16 +579,16 @@ class LighthouseChecker {
           <div class="audit-item ${this._scoreClass(a.score)}">
             <div class="audit-header">
               <span class="audit-score ${this._scoreClass(a.score)}">${a.score}</span>
-              <span class="audit-title">${a.title}</span>
-              ${a.displayValue ? `<span class="audit-value">${a.displayValue}</span>` : ''}
+              <span class="audit-title">${escHtml(a.title)}</span>
+              ${a.displayValue ? `<span class="audit-value">${escHtml(a.displayValue)}</span>` : ''}
             </div>
-            ${a.description ? `<div class="audit-desc">${a.description}</div>` : ''}
+            ${a.description ? `<div class="audit-desc">${escHtml(a.description)}</div>` : ''}
           </div>`).join('')}
         </div>`).join('');
 
       return `
       <div class="page-audits">
-        ${n > 1 ? `<div class="page-url-label">Pagina ${i + 1}: ${r.url}</div>` : ''}
+        ${n > 1 ? `<div class="page-url-label">Pagina ${i + 1}: ${escHtml(r.url)}</div>` : ''}
         ${groupedHTML}
       </div>`;
     }).join('');
@@ -588,7 +598,7 @@ class LighthouseChecker {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lighthouse Report — ${domain}</title>
+  <title>Lighthouse Report — ${escHtml(domain)}</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
