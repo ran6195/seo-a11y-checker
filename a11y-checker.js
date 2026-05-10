@@ -24,6 +24,15 @@ function _docsPath(filename) {
   return path.join(docsDir, filename);
 }
 
+function _translateImpact(impact) {
+  const map = { critical: 'critico', serious: 'grave', moderate: 'moderato', minor: 'minore' };
+  return map[impact] || impact;
+}
+
+function _translateTag(tag) {
+  return tag === 'best-practice' ? 'buona pratica' : tag;
+}
+
 class A11yChecker {
   constructor() {
     this.browser = null;
@@ -727,7 +736,7 @@ class A11yChecker {
           if (count > 0) {
             const emoji = severity === 'critical' ? '🔴' : severity === 'serious' ? '🟠' :
                          severity === 'moderate' ? '🟡' : '🔵';
-            console.log(`      ${emoji} ${severity}: ${count}`);
+            console.log(`      ${emoji} ${_translateImpact(severity)}: ${count}`);
           }
         });
       }
@@ -820,10 +829,10 @@ class A11yChecker {
 
 | Gravità | Quantità |
 |---------|----------|
-| 🔴 Critical | ${severityCount.critical} |
-| 🟠 Serious | ${severityCount.serious} |
-| 🟡 Moderate | ${severityCount.moderate} |
-| 🔵 Minor | ${severityCount.minor} |
+| 🔴 Critico | ${severityCount.critical} |
+| 🟠 Grave | ${severityCount.serious} |
+| 🟡 Moderato | ${severityCount.moderate} |
+| 🔵 Minore | ${severityCount.minor} |
 
 ## 📋 Dettaglio Pagine
 
@@ -864,7 +873,7 @@ class A11yChecker {
           if (count > 0) {
             const emoji = severity === 'critical' ? '🔴' : severity === 'serious' ? '🟠' :
                          severity === 'moderate' ? '🟡' : '🔵';
-            markdown += `- ${emoji} ${severity}: ${count}\n`;
+            markdown += `- ${emoji} ${_translateImpact(severity)}: ${count}\n`;
           }
         });
         markdown += '\n';
@@ -890,9 +899,9 @@ class A11yChecker {
 `;
         result.axeResults.violations.slice(0, 5).forEach(violation => {
           markdown += `- **${violation.id}**: ${violation.description}
-  - Gravità: ${violation.impact}
+  - Gravità: ${_translateImpact(violation.impact)}
   - Elementi: ${violation.nodes.length}
-  - Tag: ${violation.tags.join(', ')}`;
+  - Tag: ${violation.tags.map(_translateTag).join(', ')}`;
 
           if (violation.nodes && violation.nodes.length > 0) {
             markdown += `
@@ -1227,9 +1236,9 @@ class A11yChecker {
                   ${this.escapeHtml(violation.description)}
               </div>
               <div class="violation-info">
-                  <strong>Gravità:</strong> ${this.escapeHtml(violation.impact)} |
+                  <strong>Gravità:</strong> ${this.escapeHtml(_translateImpact(violation.impact))} |
                   <strong>Elementi interessati:</strong> ${violation.nodes.length} |
-                  <strong>Tag WCAG:</strong> ${this.escapeHtml(violation.tags.join(', '))}
+                  <strong>Tag WCAG:</strong> ${this.escapeHtml(violation.tags.map(_translateTag).join(', '))}
               </div>
           </div>`;
 
@@ -1303,7 +1312,7 @@ class A11yChecker {
       if (result.error) {
         return {
           url: result.url,
-          status: 'error',
+          status: 'errore',
           error: result.error,
           timestamp: result.timestamp
         };
@@ -1375,7 +1384,7 @@ class A11yChecker {
 
       return {
         url: result.url,
-        status: analysis.summary.violations > 0 ? 'violations' : 'passed',
+        status: analysis.summary.violations > 0 ? 'con violazioni' : 'superato',
         timestamp: result.timestamp,
         accessibility: {
           score: analysis.score,
@@ -1389,7 +1398,7 @@ class A11yChecker {
           wcagCompliance: {
             wcag2a: analysis.score >= 90,
             wcag2aa: analysis.score >= 90,
-            level: analysis.score >= 95 ? 'AAA' : analysis.score >= 90 ? 'AA' : analysis.score >= 70 ? 'A' : 'Non-compliant'
+            level: analysis.score >= 95 ? 'AAA' : analysis.score >= 90 ? 'AA' : analysis.score >= 70 ? 'A' : 'Non conforme'
           }
         },
         violations: violations,
@@ -1561,7 +1570,7 @@ ecc.
 `;
 
       const message = await anthropic.messages.create({
-        model: 'claude-3-haiku-20240307',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 2000,
         messages: [{
           role: 'user',
