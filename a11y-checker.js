@@ -329,10 +329,27 @@ class A11yChecker {
         a[href], button, input, textarea, select, details, [tabindex]:not([tabindex="-1"])
       `);
 
+      // NOTA: getComputedStyle(el, ':focus') non funziona per pseudo-classi (solo per
+      // pseudo-elementi come ::before). Per leggere gli stili al momento del focus bisogna
+      // focalizzare l'elemento e poi leggere getComputedStyle senza pseudo-argomento.
+      const savedFocus = document.activeElement;
+
       const elementsWithoutFocusIndicator = Array.from(focusableElements).filter(el => {
-        const styles = window.getComputedStyle(el, ':focus');
-        return !styles.outline || styles.outline === 'none';
+        // Salta elementi nascosti o disabilitati
+        if (el.disabled || el.offsetParent === null) return false;
+
+        el.focus({ preventScroll: true });
+        const styles = window.getComputedStyle(el);
+
+        // Considera valido se ha outline visibile OPPURE box-shadow (pattern comune)
+        const hasOutline = styles.outlineStyle !== 'none' && styles.outlineWidth !== '0px';
+        const hasBoxShadow = styles.boxShadow && styles.boxShadow !== 'none';
+
+        return !hasOutline && !hasBoxShadow;
       });
+
+      // Ripristina il focus precedente
+      if (savedFocus && savedFocus.focus) savedFocus.focus({ preventScroll: true });
 
       return {
         totalFocusable: focusableElements.length,
@@ -378,11 +395,14 @@ class A11yChecker {
 
       const withoutLabels = formControls.filter(control => {
         const id = control.id;
-        const label = document.querySelector(`label[for="${id}"]`);
+        // label[for="id"] esplicita
+        const labelFor = id ? document.querySelector(`label[for="${id}"]`) : null;
+        // label wrapping (il controllo è figlio diretto o indiretto di una <label>)
+        const labelWrap = control.closest('label');
         const ariaLabel = control.getAttribute('aria-label');
         const ariaLabelledby = control.getAttribute('aria-labelledby');
 
-        return !label && !ariaLabel && !ariaLabelledby;
+        return !labelFor && !labelWrap && !ariaLabel && !ariaLabelledby;
       });
 
       if (withoutLabels.length > 0) {
