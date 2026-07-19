@@ -4,16 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a web analysis toolkit built with Playwright that automates SEO audits and accessibility testing of websites. The project includes:
+This is a web analysis toolkit built with Playwright that automates SEO audits, accessibility testing, and Lighthouse audits of websites. The project includes:
 
 1. **SEO Checker**: Audits SEO elements like meta tags, heading structure, page size, favicon, and legal sections
 2. **Accessibility Checker**: Tests web accessibility using axe-core and custom checks following WCAG guidelines
-3. **SEO Web Interface**: Browser-based GUI for running SEO checks without using the command line
-4. **HTML to PDF Converter**: Standalone utility to convert HTML reports to PDF format
-5. **URL Utilities**: Python scripts for CSV processing and URL extraction
-6. **Link Extractor**: Tool to extract and analyze all links from a webpage
+3. **Lighthouse Checker**: Runs Google Lighthouse audits (performance, accessibility, SEO, best-practices) with Playwright-based crawling
+4. **Unified Web Interface**: Browser-based GUI for running SEO and accessibility checks without using the command line (experimental)
+5. **HTML to PDF Converter**: Standalone utility to convert HTML reports to PDF format
+6. **URL Utilities**: Python scripts for CSV processing and URL extraction
+7. **Link Extractor**: Tool to extract and analyze all links from a webpage
 
-Both the SEO and accessibility checkers can crawl websites, analyze multiple pages, and generate detailed reports in HTML, Markdown, and JSON formats.
+The SEO, accessibility, and Lighthouse checkers can all crawl websites, analyze multiple pages, and generate detailed reports in HTML, Markdown, and/or JSON formats.
 
 ## Architecture
 
@@ -28,7 +29,12 @@ Both the SEO and accessibility checkers can crawl websites, analyze multiple pag
 - **A11yChecker class** (`a11y-checker.js`): Main class for accessibility testing using axe-core and custom checks
 - **CLI interface** (`a11y-cli.js`): Command-line interface for accessibility audits
 - **CSV batch processor** (`a11y-from-csv.js`): Extends A11yChecker to process multiple URLs from CSV files
+- **From-JSON generator** (`a11y-from-json.js`): Generates `dichiarazione`/`allegato2` reports from an existing JSON report (output of `a11y-cli.js -f json`), without launching a browser
 - **axe-core integration**: Uses axe-core library for comprehensive WCAG compliance testing
+
+#### Lighthouse Checker
+- **LighthouseChecker class** (`lighthouse-checker.js`): Runs Google Lighthouse audits per URL (always headless), with its own Playwright-based link discovery/crawling (`discoverLinksOnPage`, `crawlSite`)
+- **CLI interface** (`lighthouse-cli.js`): Supports `--categories` (performance, accessibility, seo, best-practices), `--device` (mobile/desktop), and `--throttling` (simulate/devtools/none)
 
 #### Web Interface
 - **Unified Web Server** (`web-server.js`): Express-based server providing a unified browser GUI for both SEO and Accessibility checking
@@ -74,6 +80,8 @@ Both the SEO and accessibility checkers can crawl websites, analyze multiple pag
 npm install
 npx playwright install
 ```
+
+Requirements: Node.js v18+, Python 3 (only for the CSV/URL utility scripts), Google Chrome installed (optional, for authenticated crawling via Chrome profiles).
 
 ### Running the Tools
 
@@ -145,12 +153,34 @@ node a11y-cli.js https://example.com --no-profile
 node a11y-cli.js https://example.com -f dichiarazione --org "ACME SRL" --email info@acme.it
 ```
 
-#### HTML to PDF Converter
+#### Lighthouse Checker
 ```bash
 # Basic usage via CLI
-npm run html2pdf <file.html>
+npm run lighthouse <url>
 
 # Direct CLI usage with options
+node lighthouse-cli.js <url> [options]
+
+# Example usage
+node lighthouse-cli.js https://example.com -p 10
+node lighthouse-cli.js https://example.com --crawl -f html
+node lighthouse-cli.js https://example.com --device desktop
+node lighthouse-cli.js https://example.com --categories performance,seo
+node lighthouse-cli.js https://example.com --throttling none
+```
+
+Note: Lighthouse itself always runs headless (~15-30s per page); `-h/--headless` only affects the Playwright crawling phase used to discover pages. Requires Google Chrome installed.
+
+#### Accessibility from JSON
+```bash
+# Generate dichiarazione/allegato2 from an existing a11y JSON report, without a browser
+node a11y-from-json.js report.json
+node a11y-from-json.js report.json --org "ACME SRL" --email info@acme.it
+```
+
+#### HTML to PDF Converter
+```bash
+# Direct CLI usage (no npm script defined for this tool)
 node html-to-pdf.js <file.html> [options]
 
 # Example usage
@@ -302,6 +332,7 @@ node tests/test-url-normalization.js
 - **SEOChecker**: Main class for SEO auditing
 - **A11yChecker**: Main class for accessibility testing
 - **A11yFromCSV** (extends A11yChecker): Batch processing from CSV files
+- **LighthouseChecker**: Main class for Lighthouse-based audits (performance/accessibility/SEO/best-practices)
 
 ### SEOChecker Class Methods
 - `init(options)`: Initialize browser/context with optional Chrome profile
@@ -329,6 +360,14 @@ node tests/test-url-normalization.js
 - `parseCSV(csvContent)`: Parse CSV content and extract URLs
 - `scanFromCSV(csvPath)`: Process all URLs from CSV file and generate reports
 
+### LighthouseChecker Class Methods
+- `init(options)`: Initialize browser/context with optional Chrome profile
+- `checkUrl(url, options)`: Run a Lighthouse audit on a single URL
+- `crawlSite(baseUrl, maxPages)` / `navigateAndCheck(baseUrl, maxPages)`: Discover pages via Playwright and audit each with Lighthouse
+- `generateHTMLReport(filename)`: Create HTML Lighthouse report
+- `generateJSONReport(filename)`: Create JSON Lighthouse report
+- `close()`: Clean up browser resources
+
 ### Configuration
 - Browser runs in non-headless mode by default for observation
 - Slow motion enabled (500ms) for debugging
@@ -355,17 +394,13 @@ node tests/test-url-normalization.js
 ## Project Structure
 
 ### Directory Organization
-- **Root**: CLI tools (`*-cli.js`), main checker classes (`*-checker.js`), and utilities
+- **Root**: CLI tools (`*-cli.js`), main checker classes (`*-checker.js`), utilities, and the Windows user guides (`GUIDA_A11Y_WINDOWS.html`, `GUIDA_SEO_WINDOWS.html`)
 - **tests/**: Example and test scripts for development
-- **reports/**: Generated reports (HTML, MD, JSON)
-- **documenti/**: Documentation and archived reports
-- **dichiarazioni/**: Italian accessibility declarations and AGID reports (HTML/PDF)
-- **gruppo_zatti/**: Project-specific reports for a particular client
+- **docs/**: Default output folder for generated reports (git-ignored)
+- **dichiarazioni/**: Sample declarations/Allegato2 reports generated for a specific past client engagement, not a generic output directory
 
 ### Output Files
-- Reports are auto-named with timestamp: `a11y-report-YYYY-MM-DD-HH-MM-SS.{html,md,json}`
-- Italian declarations: `{domain}_YYYY-MM-DD-HH-MM-SS_dichiarazione.html`
-- AGID Allegato 2: `{domain}_YYYY-MM-DD-HH-MM-SS_allegato2.html`
+Reports are saved into `docs/` with the pattern `YYYYMMDD_HHMM_<domain>_<type>.<ext>` (e.g. `20260525_0942_edysma_net_a11y.html`, `..._seo.json`, `..._lighthouse.html`).
 
 ## Testing
 
@@ -395,7 +430,7 @@ node list-links.js https://example.com --visible
 ## Important Notes
 
 ### Web Interface
-The toolkit includes two web interfaces:
+The web interface is experimental — some features may be incomplete or subject to change. The toolkit includes two web interfaces:
 
 **Unified Web Interface (Recommended):**
 A modern Express-based interface (`web-server.js` + `web-ui.html`) that provides:
