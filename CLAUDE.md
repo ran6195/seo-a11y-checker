@@ -13,8 +13,9 @@ This is a web analysis toolkit built with Playwright that automates SEO audits, 
 5. **HTML to PDF Converter**: Standalone utility to convert HTML reports to PDF format
 6. **URL Utilities**: Python scripts for CSV processing and URL extraction
 7. **Link Extractor**: Tool to extract and analyze all links from a webpage
+8. **WCAG Checks Suite** (`checks/`): Independent, incremental suite with one script per WCAG 2.1 A/AA success criterion — each combines a deterministic automated check (axe-core and/or hand-written heuristics/DOM interaction) with an optional Claude-powered fallback for cases that need semantic or visual judgment. Includes a multi-page orchestrator and an aggregated HTML/PDF report generator. Currently covers 12 of 50 criteria; see `checks/` directory listing for which.
 
-The SEO, accessibility, and Lighthouse checkers can all crawl websites, analyze multiple pages, and generate detailed reports in HTML, Markdown, and/or JSON formats.
+The SEO, accessibility, and Lighthouse checkers can all crawl websites, analyze multiple pages, and generate detailed reports in HTML, Markdown, and/or JSON formats. The WCAG Checks Suite is architecturally separate (its own `checks/lib/` helpers, does not reuse `A11yChecker`) and is documented in its own sections below.
 
 ## Architecture
 
@@ -46,6 +47,16 @@ The SEO, accessibility, and Lighthouse checkers can all crawl websites, analyze 
 - **Link extractor** (`list-links.js`): Extracts all links from a webpage with categorization (internal/external/email/tel)
 - **URL utilities** (Python scripts): CSV processing, duplicate detection, and URL extraction tools
 
+#### WCAG Checks Suite (`checks/`)
+- **Per-criterion scripts** (`checks/<sc>-<slug>.js`, e.g. `checks/1.1.1-contenuto-non-testuale.js`): each exports `{ id, name, level, description, remediation, run(ctx) }`. `run(ctx)` receives `{ page, axeResults, url, options }` and returns `{ id, name, level, status, automated, ai, notes, description, remediation }` where `status` is one of `pass`, `fail`, `needs-review`, `not-applicable`, `error`. Design rule followed by every script: if the automated/heuristic layer already finds a certain fail (or the criterion is fully deterministic, e.g. 2.4.1), the AI fallback is skipped — it only runs to resolve genuine ambiguity, and only when `--ai` is passed.
+- **`checks/lib/browser.js`**: `launchBrowser()`/`loadPage()` (split so a browser can be reused across multiple page loads) plus `window.__a11yDeepQuery()`, injected into every page, which traverses Shadow DOM (`document.querySelectorAll` does not) and `autoScroll()`, which scrolls the full page once after load so `visibility:hidden` scroll-reveal content (common in Elementor/Shopify themes) is settled before any check runs.
+- **`checks/lib/anthropic.js`**: thin wrapper around `@anthropic-ai/sdk` (`askVision()` for text+image prompts, `parseJSONResponse()`) — model default `claude-haiku-4-5-20251001`.
+- **`checks/lib/runner.js`**: `loadChecks()` (loads every file matching `checks/<n>.<n>.<n>-*.js` — a positive filename filter, not an exclusion list, so orchestrator/report scripts are never accidentally required as check modules) and `runChecksOnPage()`.
+- **`checks/lib/naming.js`** / **`checks/lib/env.js`**: slug/timestamp helpers and the shared `.env` loader (same hand-rolled mechanism as `a11y-cli.js`, no `dotenv` dependency).
+- **CLI: single page** (`checks/run.js`): runs all (or `--criteria`-filtered) checks against one URL.
+- **CLI: multi-page** (`checks/run-site.js`): takes multiple URLs of the same site, computes the output run-folder **once** up front (not per page) and reuses a single browser — use this instead of calling `checks/run.js` once per page, since a full multi-criterion AI run easily exceeds a minute and separate invocations would land in different folders.
+- **Aggregated report** (`checks/report.js`): reads every JSON in a run folder and generates `report.html` — per-page pass/fail/needs-review/n.a. counts, a "systemic issues" callout (criteria failing on every page where applicable), and full per-page detail. Takes either an exact run-folder path or a site slug (picks the most recent run). For PDF, run the existing `html-to-pdf.js` on the generated `report.html` — no PDF code lives in `checks/`.
+
 ### Key Features
 
 #### Common Features
@@ -72,6 +83,14 @@ The SEO, accessibility, and Lighthouse checkers can all crawl websites, analyze 
 - Focus management verification
 - Screen reader compatibility checks
 - Accessibility score calculation (0-100)
+
+#### WCAG Checks Suite Features
+- One script per WCAG 2.1 A/AA success criterion, incrementally added (12/50 so far — see `checks/` for the current list)
+- Deterministic checks where possible: e.g. 1.4.11 computes WCAG contrast ratios directly from computed styles (no AI call needed unless colors are unresolvable — transparency, gradients), 2.4.1 verifies a skip link by actually activating it and checking whether focus really moved
+- Optional Claude fallback (`--ai`), always capped by `--limit`, only invoked for genuinely ambiguous cases — never to confirm an already-certain automated result
+- Shadow DOM aware (custom form-builder/web-component widgets) and scroll-reveal aware (content that is `visibility:hidden` until scrolled into view)
+- 3.3.1 (error identification) tests only via `blur`/`input` events on intentionally invalid values — never submits a form, so it is safe to run against arbitrary live sites
+- Multi-page orchestration with a single shared run folder, and an aggregated HTML/PDF report across all pages of a run
 
 ## Development Commands
 
@@ -239,15 +258,39 @@ python3 remove_duplicates.py
 python3 remove_first_column.py
 ```
 
+#### WCAG Checks Suite
+```bash
+# Single page, all available criteria, no AI (heuristics/axe-core only)
+node checks/run.js https://example.com
+
+# Single page, only specific criteria, with AI fallback
+node checks/run.js https://example.com --criteria 1.1.1,2.4.7 --ai --limit 3
+
+# Multiple pages of the same site in one run (creates one shared output folder)
+node checks/run-site.js https://example.com https://example.com/contatti --ai
+
+# Aggregate a run's JSON files into an HTML report (accepts a run-folder path or a site slug — picks the latest run)
+node checks/report.js checks/output/example_com_20260101_1200
+node checks/report.js example_com
+
+# Convert that report to PDF with the existing tool
+node html-to-pdf.js checks/output/example_com_20260101_1200/report.html
+```
+
+Options common to `run.js`/`run-site.js`: `--criteria <list>` (default: all scripts found in `checks/`), `--ai` (requires `ANTHROPIC_API_KEY` in `.env` or `--ai-key`), `--limit <n>` (max AI-verified elements per criterion, default 5), `-h/--headless`. `run.js` also supports `-o/--output <file>` and `--no-save` (auto-save to `checks/output/` is the default otherwise); `run-site.js` has no `-o` — output is always the shared run folder, one JSON per page.
+
 ### CLI Options (Common to both tools)
 - `-p, --pages <number>`: Max pages to check (default: 5)
 - `-c, --crawl`: Full site crawling mode (ignores -p)
 - `-o, --output <file>`: Report filename (default: auto-generated)
-- `-f, --format <type>`: Report format (html, md, json, all) (default: all)
+- `-f, --format <type>`: Report format — accepted values differ per tool (see below)
 - `-h, --headless`: Run without browser UI
 - `--no-profile`: Don't use Chrome profile (uses Chromium instead of Chrome)
 - `--select-profile`: Show list of available Chrome profiles for user selection
 - `--help`: Show help message
+
+#### SEO Checker Specific Options
+- `-f, --format <type>`: `html`, `md`, `json`, or `both` (default: `both`, generates HTML+MD). Note: there is no single value that generates all three formats — use `both` then `json` separately if you need all of them.
 
 #### Accessibility Checker Specific Options
 - `-f, --format <type>`: Report format (html, md, json, dichiarazione, allegato2, all) (default: all)
@@ -398,9 +441,12 @@ node tests/test-url-normalization.js
 - **tests/**: Example and test scripts for development
 - **docs/**: Default output folder for generated reports (git-ignored)
 - **dichiarazioni/**: Sample declarations/Allegato2 reports generated for a specific past client engagement, not a generic output directory
+- **checks/**: WCAG Checks Suite — one script per criterion at the top level, shared code in `checks/lib/`, generated output in `checks/output/` (git-ignored)
 
 ### Output Files
 Reports are saved into `docs/` with the pattern `YYYYMMDD_HHMM_<domain>_<type>.<ext>` (e.g. `20260525_0942_edysma_net_a11y.html`, `..._seo.json`, `..._lighthouse.html`).
+
+The WCAG Checks Suite saves separately, into `checks/output/<sito>_<YYYYMMDD_HHMM>/<pagina>.json` (one run folder per invocation of `run.js`/`run-site.js`, one JSON per page); `checks/report.js` writes `report.html` into that same run folder.
 
 ## Testing
 
@@ -425,6 +471,9 @@ node a11y-from-csv.js test_urls.csv --headless
 
 # Test link extraction
 node list-links.js https://example.com --visible
+
+# Test the WCAG Checks Suite (single criterion, headless, no AI/no cost)
+node checks/run.js https://example.com --headless --no-save --criteria 1.1.1
 ```
 
 ## Important Notes
@@ -450,6 +499,8 @@ Start with `node seo-web-server.js`.
 
 ### AI-Powered Features
 The accessibility checker can use Claude AI (via Anthropic API) to simplify technical violation descriptions for non-technical stakeholders. Set `ANTHROPIC_API_KEY` in `.env` or pass via `--ai-key` parameter.
+
+The WCAG Checks Suite (`checks/`) reads the same `.env`/`ANTHROPIC_API_KEY` (or `--ai-key`) to power its own, separate `--ai` fallback — it is a different feature (per-criterion pass/fail judgment on ambiguous cases, not description simplification) but shares the same key and loading mechanism.
 
 ### Italian Compliance Reports
 This toolkit generates Italian accessibility compliance documents:
