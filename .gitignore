@@ -120,3 +120,6 @@ docs/
 *.tar.gz
 *.rar
 *.7z
+
+# Output generato da checks/run.js (un JSON per pagina, per run)
+checks/output/

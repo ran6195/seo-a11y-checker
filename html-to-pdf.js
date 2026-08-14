@@ -158,6 +158,19 @@ async function convertHtmlToPdf() {
     // Aspetta un momento per assicurarsi che tutto sia renderizzato
     await page.waitForTimeout(500);
 
+    // Un <details> chiuso in un PDF è contenuto perso per sempre: non c'è modo di
+    // cliccarlo su carta. Forziamo tutti i <details> aperti prima di stampare, così
+    // qualunque report con sezioni "mostra altri N" (o simili) le mostra sempre in PDF,
+    // restando invece compatte/interattive quando l'HTML è consultato a schermo.
+    const detailsOpened = await page.evaluate(() => {
+      const list = document.querySelectorAll('details:not([open])');
+      list.forEach(d => { d.open = true; });
+      return list.length;
+    });
+    if (detailsOpened > 0) {
+      console.log(`📂 Espansi ${detailsOpened} elementi <details> prima della stampa`);
+    }
+
     console.log('🖨️  Generazione PDF...');
 
     // Configura i margini
