@@ -97,4 +97,51 @@ async function createContext(url, options = {}) {
   return { browser, page, axeResults, url };
 }
 
-module.exports = { createContext, launchBrowser, loadPage, AXE_TAGS };
+// page.screenshot({ clip }) NON scorre l'elemento in vista prima di catturare (a differenza
+// di elementHandle.screenshot(), che lo fa automaticamente): un elemento sotto la piega del
+// viewport corrente al momento del clip fa fallire silenziosamente lo screenshot ("Clipped
+// area ... is outside of the viewport"), che gli script chiamanti registrano come "errore".
+// scrollIntoView() va chiamato subito prima di rileggere getBoundingClientRect() di un
+// elemento potenzialmente fuori dal viewport corrente (tipicamente sotto la piega su pagine
+// lunghe), per ottenere coordinate valide per un successivo page.screenshot({ clip }).
+async function scrollIntoView(page, selector) {
+  await page.locator(selector).first().scrollIntoViewIfNeeded().catch(() => {});
+}
+
+// Scorre l'elemento in vista e restituisce un box con margine di contesto pronto per
+// page.screenshot({ clip }), o null se l'elemento non esiste più nel DOM.
+async function getPaddedBox(page, selector, pad = 12) {
+  await scrollIntoView(page, selector);
+  const box = await page.evaluate(({ sel, pad }) => {
+    const el = window.__a11yDeepQuery(sel)[0];
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.round(r.left - pad)),
+      y: Math.max(0, Math.round(r.top - pad)),
+      width: Math.round(r.width + pad * 2),
+      height: Math.round(r.height + pad * 2)
+    };
+  }, { sel: selector, pad });
+  if (!box) return null;
+
+  // Alcuni elementi (es. un banner cookie con position:fixed/sticky) non si spostano con lo
+  // scroll della pagina: scrollIntoViewIfNeeded() non ha alcun effetto su di loro, e se
+  // restano comunque oltre i bordi del viewport un clip che li eccede fa fallire
+  // page.screenshot ("Clipped area is either empty or outside the resulting image").
+  // Tagliamo il box ai confini del viewport corrente: risultato onesto (un box ad area
+  // nulla se l'elemento è del tutto fuori vista, già gestito dai chiamanti come "elemento
+  // non renderizzato") invece di un fallimento silenzioso dello screenshot.
+  const viewport = page.viewportSize();
+  if (viewport) {
+    const x2 = Math.min(box.x + box.width, viewport.width);
+    const y2 = Math.min(box.y + box.height, viewport.height);
+    box.x = Math.max(0, Math.min(box.x, viewport.width));
+    box.y = Math.max(0, Math.min(box.y, viewport.height));
+    box.width = Math.max(0, x2 - box.x);
+    box.height = Math.max(0, y2 - box.y);
+  }
+  return box;
+}
+
+module.exports = { createContext, launchBrowser, loadPage, AXE_TAGS, scrollIntoView, getPaddedBox };

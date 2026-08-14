@@ -13,7 +13,7 @@ This is a web analysis toolkit built with Playwright that automates SEO audits, 
 5. **HTML to PDF Converter**: Standalone utility to convert HTML reports to PDF format
 6. **URL Utilities**: Python scripts for CSV processing and URL extraction
 7. **Link Extractor**: Tool to extract and analyze all links from a webpage
-8. **WCAG Checks Suite** (`checks/`): Independent, incremental suite with one script per WCAG 2.1 A/AA success criterion — each combines a deterministic automated check (axe-core and/or hand-written heuristics/DOM interaction) with an optional Claude-powered fallback for cases that need semantic or visual judgment. Includes a multi-page orchestrator and an aggregated HTML/PDF report generator. Currently covers 12 of 50 criteria; see `checks/` directory listing for which.
+8. **WCAG Checks Suite** (`checks/`): Independent, incremental suite with one script per WCAG 2.1 A/AA success criterion — each combines a deterministic automated check (axe-core and/or hand-written heuristics/DOM interaction) with an optional Claude-powered fallback for cases that need semantic or visual judgment. Includes a multi-page orchestrator and an aggregated HTML/PDF report generator. Currently covers 26 of 50 criteria; see `checks/` directory listing for which, or `checks/CRITERI.md` for the full classification of all 50.
 
 The SEO, accessibility, and Lighthouse checkers can all crawl websites, analyze multiple pages, and generate detailed reports in HTML, Markdown, and/or JSON formats. The WCAG Checks Suite is architecturally separate (its own `checks/lib/` helpers, does not reuse `A11yChecker`) and is documented in its own sections below.
 
@@ -85,7 +85,7 @@ The SEO, accessibility, and Lighthouse checkers can all crawl websites, analyze 
 - Accessibility score calculation (0-100)
 
 #### WCAG Checks Suite Features
-- One script per WCAG 2.1 A/AA success criterion, incrementally added (12/50 so far — see `checks/` for the current list)
+- One script per WCAG 2.1 A/AA success criterion, incrementally added (26/50 so far — see `checks/` for the current list)
 - Deterministic checks where possible: e.g. 1.4.11 computes WCAG contrast ratios directly from computed styles (no AI call needed unless colors are unresolvable — transparency, gradients), 2.4.1 verifies a skip link by actually activating it and checking whether focus really moved
 - Optional Claude fallback (`--ai`), always capped by `--limit`, only invoked for genuinely ambiguous cases — never to confirm an already-certain automated result
 - Shadow DOM aware (custom form-builder/web-component widgets) and scroll-reveal aware (content that is `visibility:hidden` until scrolled into view)

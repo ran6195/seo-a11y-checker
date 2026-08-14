@@ -1,4 +1,5 @@
 const { askVision, parseJSONResponse } = require('./lib/anthropic');
+const { getPaddedBox } = require('./lib/browser');
 
 const CANDIDATE_SELECTOR = 'button, input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]), select, textarea, [role="button"], [role="checkbox"], [role="switch"]';
 
@@ -175,11 +176,15 @@ module.exports = {
 
       for (const item of toCheck) {
         try {
-          if (item.box.width <= 0 || item.box.height <= 0) {
+          // Il box era stato calcolato in blocco su TUTTI i candidati prima di sapere quali
+          // sarebbero stati verificati con AI: va scorso in vista e riletto ora, non riusato
+          // così com'era, altrimenti un elemento sotto la piega fa fallire lo screenshot.
+          const freshBox = await getPaddedBox(page, item.selector, 6);
+          if (!freshBox || freshBox.width <= 0 || freshBox.height <= 0) {
             findings.push({ ...item, verdict: 'errore', reason: 'elemento non renderizzato o dimensioni nulle' });
             continue;
           }
-          const screenshotBuffer = await page.screenshot({ clip: item.box }).catch(() => null);
+          const screenshotBuffer = await page.screenshot({ clip: freshBox }).catch(() => null);
           if (!screenshotBuffer) {
             findings.push({ ...item, verdict: 'errore', reason: 'impossibile catturare lo screenshot' });
             continue;

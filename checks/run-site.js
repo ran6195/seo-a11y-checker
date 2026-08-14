@@ -79,7 +79,7 @@ async function main() {
 
   // Cartella-run calcolata UNA volta, prima di controllare qualunque pagina: è questo
   // il punto di tutto lo script. checks/run.js la ricalcola ad ogni invocazione, e su
-  // un run completo (12 criteri + AI) una singola pagina può superare il minuto,
+  // un run completo (26 criteri + AI) una singola pagina può superare il minuto,
   // facendo scadere il raggruppamento "stesso timestamp" tra pagine consecutive.
   const site = slugifyDomain(options.urls[0]);
   const runDir = path.join(__dirname, 'output', `${site}_${buildTimestamp(runStarted)}`);

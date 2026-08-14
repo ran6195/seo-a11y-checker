@@ -1,4 +1,5 @@
 const { askVision, parseJSONResponse } = require('./lib/anthropic');
+const { scrollIntoView } = require('./lib/browser');
 
 module.exports = {
   id: '1.4.3',
@@ -58,6 +59,7 @@ module.exports = {
 
     for (const item of toCheck) {
       try {
+        await scrollIntoView(page, item.selector);
         const info = await page.evaluate((sel) => {
           const el = window.__a11yDeepQuery(sel)[0];
           if (!el) return null;
