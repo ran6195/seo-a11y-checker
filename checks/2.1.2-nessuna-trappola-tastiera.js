@@ -2,6 +2,16 @@ const { askVision, parseJSONResponse } = require('./lib/anthropic');
 
 const MAX_TAB_STEPS = 200;
 const VERIFY_STEPS = 12;
+// Un <input type="date"/"time"/"datetime-local"/"number"> nativo è composto da più segmenti
+// interni (giorno/mese/anno, ore/minuti) che Tab attraversa SENZA cambiare
+// document.activeElement per diversi passaggi: senza questo margine verrebbe scambiato per
+// una trappola già dopo un solo elemento. Vedi checks/2.4.7-focus-visibile.js per lo stesso fix.
+const MAX_SAME_ELEMENT_RETRIES = 8;
+// Quando questo script gira dopo altri Tab-walk sulla stessa pagina (checks/run.js/run-site.js
+// eseguono tutti i criteri in sequenza), il primo Tab può atterrare in modo transitorio su
+// <body> invece che sul primo elemento reale. Vedi checks/2.4.7-focus-visibile.js per lo
+// stesso fix e i dettagli.
+const MAX_INITIAL_BODY_RETRIES = 3;
 const TABBABLE_SELECTOR = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable="true"], audio[controls], video[controls], details > summary, iframe';
 
 module.exports = {
@@ -38,6 +48,8 @@ module.exports = {
     const focused = [];
     let outcome = 'max-steps';
     let repeatToId = null;
+    let sameElementStreak = 0;
+    let initialBodyRetries = 0;
 
     for (let i = 0; i < MAX_TAB_STEPS; i++) {
       await page.keyboard.press('Tab');
@@ -50,8 +62,21 @@ module.exports = {
         return { repeat: false, left: false, id, tag: el.tagName.toLowerCase(), text: (el.textContent || el.value || '').trim().slice(0, 40) };
       }, focused.length).catch(() => ({ left: true }));
 
-      if (info.left) { outcome = 'left-page'; break; }
-      if (info.repeat) { outcome = 'repeat'; repeatToId = info.id; break; }
+      if (info.left) {
+        if (focused.length === 0 && initialBodyRetries < MAX_INITIAL_BODY_RETRIES) {
+          initialBodyRetries++;
+          continue;
+        }
+        outcome = 'left-page'; break;
+      }
+      if (info.repeat) {
+        if (info.id === focused.length - 1 && sameElementStreak < MAX_SAME_ELEMENT_RETRIES) {
+          sameElementStreak++;
+          continue;
+        }
+        outcome = 'repeat'; repeatToId = info.id; break;
+      }
+      sameElementStreak = 0;
       focused.push(info);
     }
 

@@ -1,6 +1,21 @@
 const { askVision, parseJSONResponse } = require('./lib/anthropic');
 
 const MAX_TAB_STEPS = 200;
+// Un <input type="date"/"time"/"datetime-local"/"number"> nativo è composto da più segmenti
+// interni (giorno/mese/anno, ore/minuti, frecce su/giù) che Tab attraversa SENZA cambiare
+// document.activeElement (resta lo stesso elemento per diversi passaggi): senza questo
+// margine, il walk lo scambierebbe per un ciclo già completato dopo un solo elemento,
+// troncando l'esplorazione del resto della pagina — bug reale scoperto su un form di
+// prenotazione con campi data/ora nativi (2/2 "coperti" era in realtà 2 su tutta la pagina).
+const MAX_SAME_ELEMENT_RETRIES = 8;
+// Quando questo script gira subito dopo altri script basati su Tab-walk (2.1.2, 2.4.3) sulla
+// stessa pagina/browser (checks/run.js e run-site.js li eseguono tutti in sequenza), il primo
+// Tab può occasionalmente atterrare in modo transitorio su <body> invece che sul primo
+// elemento reale — osservato empiricamente, causa non del tutto chiara (probabile stato di
+// focus residuo del walk precedente). Concediamo qualche tentativo extra solo se non abbiamo
+// ancora trovato nessun elemento, prima di concludere che la pagina è davvero senza elementi
+// raggiungibili con Tab.
+const MAX_INITIAL_BODY_RETRIES = 3;
 
 module.exports = {
   id: '2.4.7',
@@ -21,12 +36,15 @@ module.exports = {
     await page.evaluate(() => { if (document.activeElement) document.activeElement.blur(); });
 
     const focused = [];
+    let sameElementStreak = 0;
+    let initialBodyRetries = 0;
     for (let i = 0; i < MAX_TAB_STEPS; i++) {
       await page.keyboard.press('Tab');
       const info = await page.evaluate((id) => {
         const el = document.activeElement;
         if (!el || el === document.body) return null;
-        if (el.hasAttribute('data-a11y-tab-id')) return { repeat: true };
+        const existingId = el.getAttribute('data-a11y-tab-id');
+        if (existingId !== null) return { repeat: true, id: Number(existingId) };
         el.setAttribute('data-a11y-tab-id', String(id));
         const s = window.getComputedStyle(el);
         return {
@@ -39,9 +57,25 @@ module.exports = {
           boxShadow: s.boxShadow,
           selector: `[data-a11y-tab-id="${id}"]`
         };
-      }, i).catch(() => null);
+      }, focused.length).catch(() => null);
 
-      if (!info || info.repeat) break; // fuori dalla pagina o tornati all'inizio del ciclo
+      if (!info) {
+        if (focused.length === 0 && initialBodyRetries < MAX_INITIAL_BODY_RETRIES) {
+          initialBodyRetries++;
+          continue;
+        }
+        break; // fuori dalla pagina
+      }
+
+      if (info.repeat) {
+        if (info.id === focused.length - 1 && sameElementStreak < MAX_SAME_ELEMENT_RETRIES) {
+          sameElementStreak++;
+          continue;
+        }
+        break; // ciclo vero: tornati a un elemento precedente, oltre il margine di tolleranza
+      }
+
+      sameElementStreak = 0;
       focused.push(info);
     }
 

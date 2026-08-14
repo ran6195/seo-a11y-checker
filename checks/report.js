@@ -131,8 +131,23 @@ function collectSuggestions(result) {
   return result.remediation ? [result.remediation] : [];
 }
 
+// Ogni script di checks/ struttura i propri automated.issues[] con campi diversi a seconda
+// del criterio (name, visibleText, alt, kind, role/ariaLive, da/a...): non esiste un unico
+// campo "descrizione" comune a tutti. Questa funzione prova, in ordine di preferenza, i campi
+// testuali più informativi, e solo se nessuno è disponibile ripiega su un'etichetta sintetica
+// da tag/tipo — il selettore temporaneo (es. [data-a11y-field-id="0"], rimosso dal DOM a fine
+// controllo) resta l'ultimissima risorsa, non il caso comune.
 function issueLabel(i) {
-  return i.text || i.title || i.label || i.html || i.lang || i.selector || '';
+  if (i.da && i.a) return `${i.da} → ${i.a}`; // 2.4.3: salto nell'ordine del focus
+  const primary = i.text || i.title || i.label || i.name || i.visibleText || i.accessibleName ||
+    i.alt || i.errorText || i.kind || i.html || i.lang;
+  if (primary) return primary;
+  if (i.role || i.ariaLive) return `role="${i.role || '?'}" aria-live="${i.ariaLive || '?'}"`;
+  if (i.tag) {
+    const extra = i.type ? ` [${i.type}]` : (i.width ? ` (${i.width}px)` : '');
+    return `<${i.tag}>${extra} — nessun testo disponibile`;
+  }
+  return i.selector || '';
 }
 
 // I primi 4 restano sempre visibili; il resto va dentro un <details> nativo (niente
