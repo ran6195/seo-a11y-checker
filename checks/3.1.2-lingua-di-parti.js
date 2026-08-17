@@ -25,6 +25,7 @@ module.exports = {
   level: 'AA',
   description: 'Ogni brano di testo (o frase) in una lingua diversa da quella principale della pagina deve avere un attributo lang che ne identifichi la lingua.',
   remediation: 'Aggiungi lang="codice" (es. lang="en") sull\'elemento che racchiude il brano di testo in lingua diversa (una citazione, un blocco tradotto, un termine straniero corposo), non solo sull\'<html> principale.',
+  aiCapable: true,
 
   async run(ctx) {
     const { page, options } = ctx;

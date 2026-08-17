@@ -12,6 +12,7 @@ module.exports = {
   level: 'A',
   description: 'Per i componenti dell\'interfaccia con un\'etichetta testuale visibile, il nome accessibile deve includere il testo visibile: necessario per chi usa il comando vocale, che si aspetta di poter attivare il controllo pronunciando esattamente ciò che vede scritto.',
   remediation: 'Se aggiungi un aria-label a un controllo che ha già un testo visibile, fai in modo che includa (anche solo come prefisso) lo stesso testo visibile: es. testo visibile "Cerca" → aria-label="Cerca prodotti", non aria-label="Invia ricerca".',
+  aiCapable: true,
 
   // Confronto testo visibile vs nome accessibile: quando i due divergono del tutto è un
   // fallimento verificabile solo leggendo il DOM (nessun giudizio visivo necessario, come

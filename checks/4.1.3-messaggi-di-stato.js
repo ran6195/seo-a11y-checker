@@ -22,6 +22,7 @@ module.exports = {
   level: 'AA',
   description: 'I messaggi di stato (conferme, errori, avvisi, aggiornamenti) devono poter essere comunicati alle tecnologie assistive senza ricevere il focus, tramite un ruolo o proprietà appropriati (es. role="status", aria-live).',
   remediation: 'Racchiudi i messaggi generati dinamicamente (conferme, contatori di risultati, errori) in un contenitore con role="status" (o aria-live="polite"/"assertive" per gli avvisi urgenti), presente nel DOM fin dal caricamento della pagina e aggiornato senza spostare il focus.',
+  aiCapable: true,
 
   async run(ctx) {
     const { page, options } = ctx;

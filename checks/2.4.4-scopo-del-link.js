@@ -8,6 +8,7 @@ module.exports = {
   level: 'A',
   description: 'Lo scopo di ogni link deve essere comprensibile dal testo del link stesso o dal contesto immediato che lo circonda.',
   remediation: 'Sostituisci testi generici ("clicca qui", "leggi di più") con testo che descriva la destinazione (es. "Leggi la privacy policy"); se serve un testo breve, rafforzalo con un aria-label più descrittivo.',
+  aiCapable: true,
 
   async run(ctx) {
     const { page, axeResults, options } = ctx;

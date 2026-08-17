@@ -7,6 +7,7 @@ module.exports = {
   level: 'AA',
   description: 'Il testo deve avere un rapporto di contrasto di almeno 4,5:1 con lo sfondo (3:1 per il testo grande, dai 18pt o 14pt in grassetto in su).',
   remediation: 'Scurisci il testo o schiarisci lo sfondo (o viceversa) finché il rapporto di contrasto raggiunge la soglia richiesta; verifica con uno strumento di color contrast checker.',
+  aiCapable: true,
 
   async run(ctx) {
     const { page, axeResults, options } = ctx;

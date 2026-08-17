@@ -6,6 +6,7 @@ module.exports = {
   level: 'A',
   description: 'Gli elementi devono avere tag di apertura/chiusura completi, essere annidati secondo le loro specifiche, non contenere attributi duplicati, e ogni id deve essere univoco (tranne dove le specifiche lo consentono).',
   remediation: 'Rendi univoco ogni id nel documento (compresi quelli generati dinamicamente da widget/plugin duplicati sulla stessa pagina); valida il markup con un validatore HTML per correggere annidamento e tag non chiusi.',
+  aiCapable: false,
 
   async run(ctx) {
     const { axeResults } = ctx;

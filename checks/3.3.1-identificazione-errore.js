@@ -16,6 +16,7 @@ module.exports = {
   level: 'A',
   description: 'Se viene rilevato automaticamente un errore di input, l\'elemento in errore deve essere identificato e l\'errore descritto all\'utente in un testo.',
   remediation: 'Al momento della validazione imposta aria-invalid="true" sul campo e collega un messaggio di errore testuale via aria-describedby (o un role="alert"/aria-live), non solo un cambio di colore del bordo.',
+  aiCapable: true,
 
   async run(ctx) {
     const { page, options } = ctx;

@@ -23,6 +23,7 @@ module.exports = {
   level: 'A',
   description: 'L\'elemento <html> deve dichiarare la lingua principale della pagina con un attributo lang valido.',
   remediation: 'Imposta lang sull\'elemento <html> con il codice corretto (es. lang="it" per contenuto in italiano), coerente con la lingua reale del testo.',
+  aiCapable: true,
 
   async run(ctx) {
     const { page, axeResults, options } = ctx;

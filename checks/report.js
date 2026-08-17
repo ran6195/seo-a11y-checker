@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 const path = require('path');
 const fs = require('fs');
+const { loadChecks } = require('./lib/runner');
+const { POCO_AUTOMATIZZABILE, NON_AUTOMATIZZABILE } = require('./lib/not-implemented');
 
 const STATUS_ICON = {
   pass: '✅',
@@ -232,6 +234,49 @@ function renderSystemic(systemic) {
   </div>`;
 }
 
+// Riepilogo di metodologia, non dei risultati di questo run: quali criteri WCAG questa
+// suite copre e come (sempre in automatico, con AI opzionale per i casi ambigui o no), e
+// quali restano fuori perché poco o per niente automatizzabili — la stessa classificazione
+// di checks/CRITERI.md, qui in forma compatta per chi legge solo il report generato.
+function renderCoverage() {
+  const implemented = loadChecks(null); // ordinati per id, uno per script in checks/
+  const implementedRows = implemented.map(c => `
+    <tr>
+      <td class="mono">${esc(c.id)}</td>
+      <td>${esc(c.name)}</td>
+      <td class="count-cell"><span class="lvl">${esc(c.level)}</span></td>
+      <td class="count-cell"><span class="method-badge ${c.aiCapable ? 'ai' : 'auto'}">${c.aiCapable ? 'Automatico + AI' : 'Automatico'}</span></td>
+    </tr>`).join('');
+
+  const notImplementedList = (items) => items.map(c =>
+    `<li><span class="crit-id">${esc(c.id)}</span> <strong>${esc(c.name)}</strong> <span class="lvl">${esc(c.level)}</span> — ${esc(c.reason)}</li>`
+  ).join('');
+
+  const aiCount = implemented.filter(c => c.aiCapable).length;
+  const totalWcag = implemented.length + POCO_AUTOMATIZZABILE.length + NON_AUTOMATIZZABILE.length;
+
+  return `
+  <section class="coverage">
+    <h2>Copertura dei criteri WCAG 2.1 A/AA</h2>
+    <p class="crit-desc">Questo audit copre ${implemented.length} dei ${totalWcag} criteri A/AA. Ognuno è sempre verificato in automatico (axe-core e/o euristiche); per ${aiCount} è disponibile anche un fallback AI opzionale (Claude) per i casi che il controllo automatico da solo non può giudicare con certezza — mai per confermare un esito già certo.</p>
+    <div class="table-wrap">
+      <table class="page-summary coverage-table">
+        <thead><tr><th>SC</th><th>Criterio</th><th>Liv.</th><th>Metodo</th></tr></thead>
+        <tbody>${implementedRows}</tbody>
+      </table>
+    </div>
+    <details class="more-details">
+      <summary>${POCO_AUTOMATIZZABILE.length + NON_AUTOMATIZZABILE.length} criteri non ancora implementati</summary>
+      <h3>Poco automatizzabile (${POCO_AUTOMATIZZABILE.length})</h3>
+      <p class="crit-note">Un controllo si potrebbe costruire, ma il segnale automatico sarebbe debole o rumoroso rispetto al valore che darebbe: per ora verifica manuale.</p>
+      <ul class="issue-list not-impl-list">${notImplementedList(POCO_AUTOMATIZZABILE)}</ul>
+      <h3>Non automatizzabile (${NON_AUTOMATIZZABILE.length})</h3>
+      <p class="crit-note">Richiede un umano, contenuto reale (audio/video) o un dispositivo fisico (touch, sensori di movimento): nessuno script avrebbe senso qui, nemmeno con AI.</p>
+      <ul class="issue-list not-impl-list">${notImplementedList(NON_AUTOMATIZZABILE)}</ul>
+    </details>
+  </section>`;
+}
+
 function renderHtml({ site, runFolder, pages, criteria, counts, systemic }) {
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const pagesMeta = pages.map(p => `<div class="meta-item"><dt>${esc(pageLabel(p))}</dt><dd>${esc(new Date(p.data.timestamp).toLocaleString('it-IT'))}</dd></div>`).join('');
@@ -327,6 +372,12 @@ function renderHtml({ site, runFolder, pages, criteria, counts, systemic }) {
   .clean-details summary { cursor: pointer; padding: .4rem 0; }
   .clean-list { list-style: none; margin: .4rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
   .clean-list li { display: flex; align-items: center; gap: .5rem; }
+  .method-badge { font-size: .68rem; font-weight: 600; padding: .14rem .5rem; border-radius: 3px; white-space: nowrap; }
+  .method-badge.auto { background: var(--neutral-bg); color: var(--neutral-ink); }
+  .method-badge.ai { background: var(--info-bg); color: var(--info); border: 1px solid var(--info-border); }
+  table.coverage-table td:nth-child(2) { max-width: 32ch; }
+  .not-impl-list li { line-height: 1.5; }
+  .coverage h3 { font-size: .95rem; margin: 1.1rem 0 .3rem; }
   footer { border-top: 1px solid var(--border); padding-top: 1.5rem; font-size: .82rem; color: var(--ink-soft); }
   footer p { margin: 0 0 .6rem; }
   @media (max-width: 560px) { .stats { grid-template-columns: repeat(2,1fr); } }
@@ -336,7 +387,9 @@ function renderHtml({ site, runFolder, pages, criteria, counts, systemic }) {
      mai nella vista a schermo. Font più piccolo e meno spaziatura per stare in più
      pagine leggibili; i <details> sono già forzati aperti da html-to-pdf.js stesso. */
   @media print {
-    body { font-size: .82rem; }
+    /* Il PDF non deve ereditare lo sfondo di --bg (tinta chiara o, in dark mode, quasi
+       nero): in stampa/PDF vogliamo sempre pagina bianca, indipendentemente dal tema. */
+    body { font-size: .82rem; background: #fff; }
     .page { max-width: 100%; padding: 1rem .4rem; }
     h1 { font-size: 1.5rem; }
     h2 { font-size: 1.05rem; }
@@ -371,6 +424,8 @@ function renderHtml({ site, runFolder, pages, criteria, counts, systemic }) {
     <h2>Dettaglio per pagina</h2>
     ${pages.map(renderPageDetail).join('')}
   </section>
+
+  ${renderCoverage()}
 
   <footer>
     <p><strong>Metodologia</strong>: axe-core per i fallimenti strutturali certi, euristiche su markup/testo per isolare i candidati ambigui, fallback Claude Haiku 4.5 per i casi che richiedono giudizio semantico o visivo. I verdetti AI sono un segnale assistivo, da rileggere prima di considerarli conclusivi.</p>

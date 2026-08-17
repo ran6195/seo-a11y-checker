@@ -78,6 +78,7 @@ module.exports = {
   level: 'AA',
   description: 'I confini di controlli UI (bordi di campi, bottoni) e le icone significative devono avere un contrasto di almeno 3:1 rispetto ai colori adiacenti.',
   remediation: 'Scurisci/schiarisci il bordo o lo sfondo del controllo finché il rapporto di contrasto con l\'area circostante raggiunge almeno 3:1; non affidarti a un bordo troppo simile allo sfondo per delimitare campi o bottoni.',
+  aiCapable: true,
 
   async run(ctx) {
     const { page, options } = ctx;

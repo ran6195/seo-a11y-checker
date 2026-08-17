@@ -14,6 +14,7 @@ module.exports = {
   level: 'AA',
   description: 'Se la stessa presentazione visiva può essere ottenuta con testo vero, un\'immagine non deve essere usata per presentare del testo (eccetto loghi o quando la particolare resa è essenziale all\'informazione).',
   remediation: 'Sostituisci l\'immagine con testo HTML reale formattato via CSS (font, colore, dimensione); mantieni l\'immagine solo se è un logo o se la resa visiva specifica è essa stessa l\'informazione da comunicare.',
+  aiCapable: true,
 
   async run(ctx) {
     const { page, options } = ctx;

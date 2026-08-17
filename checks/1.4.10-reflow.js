@@ -11,6 +11,7 @@ module.exports = {
   level: 'AA',
   description: 'Il contenuto deve essere presentabile senza richiedere lo scroll in due dimensioni: a 320 CSS px di larghezza (equivalente a 1280px con zoom 400%) non deve servire lo scroll orizzontale, salvo per contenuti che richiedono per natura una disposizione bidimensionale (tabelle dati, mappe, diagrammi, video).',
   remediation: 'Usa layout responsive (max-width:100%, flex/grid che vanno a capo, unità relative) invece di larghezze fisse in px; per le tabelle dati valuta uno scroll orizzontale contenuto al solo blocco tabella, non all\'intera pagina.',
+  aiCapable: true,
 
   async run(ctx) {
     const { page, options } = ctx;

@@ -18,6 +18,7 @@ module.exports = {
   level: 'AA',
   description: 'Se viene rilevato automaticamente un errore di input e sono noti suggerimenti per la correzione, questi devono essere forniti all\'utente, a meno che non comprometta la sicurezza o lo scopo del contenuto.',
   remediation: 'Non limitarti a segnalare che un campo è "non valido": indica il formato atteso o un esempio concreto (es. "Inserisci un\'email nel formato nome@dominio.it") o il vincolo mancante (es. "Deve contenere almeno 8 caratteri").',
+  aiCapable: true,
 
   async run(ctx) {
     const { page, options } = ctx;

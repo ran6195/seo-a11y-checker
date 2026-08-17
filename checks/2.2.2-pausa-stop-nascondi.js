@@ -11,6 +11,7 @@ module.exports = {
   level: 'A',
   description: 'Per contenuto in movimento, lampeggiante, scorrevole o che si aggiorna automaticamente, che parte in automatico, dura più di 5 secondi ed è presentato insieme ad altro contenuto, l\'utente deve poter metterlo in pausa, fermarlo o nasconderlo.',
   remediation: 'Aggiungi un pulsante play/pausa ben visibile e funzionale (raggiungibile da tastiera) su carousel, animazioni e contenuti che si aggiornano da soli; in alternativa rispetta prefers-reduced-motion o evita l\'avvio automatico.',
+  aiCapable: true,
 
   async run(ctx) {
     const { page, options } = ctx;
