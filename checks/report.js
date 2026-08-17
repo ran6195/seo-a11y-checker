@@ -75,7 +75,14 @@ function loadPages(runFolder) {
       const data = JSON.parse(fs.readFileSync(path.join(runFolder, f), 'utf8'));
       return { slug: f.replace(/\.json$/, ''), data };
     })
-    .sort((a, b) => a.slug.localeCompare(b.slug));
+    // La home ("home", da slugifyPage() per il path radice, vedi checks/lib/naming.js) va
+    // sempre per prima: è la pagina di riferimento del sito, non deve dipendere da dove
+    // capita in ordine alfabetico rispetto alle altre.
+    .sort((a, b) => {
+      if (a.slug === 'home') return -1;
+      if (b.slug === 'home') return 1;
+      return a.slug.localeCompare(b.slug);
+    });
 }
 
 function aggregate(pages) {
@@ -279,7 +286,14 @@ function renderCoverage() {
 
 function renderHtml({ site, runFolder, pages, criteria, counts, systemic }) {
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
-  const pagesMeta = pages.map(p => `<div class="meta-item"><dt>${esc(pageLabel(p))}</dt><dd>${esc(new Date(p.data.timestamp).toLocaleString('it-IT'))}</dd></div>`).join('');
+  // Tabella invece di un elenco a capo automatico: con più di 2-3 pagine il flex-wrap
+  // finiva per accostare pagine diverse sulla stessa riga, illeggibile con URL lunghi.
+  const pagesMeta = pages.map((p, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td class="meta-page">${esc(pageLabel(p))}</td>
+      <td class="meta-date">${esc(new Date(p.data.timestamp).toLocaleString('it-IT'))}</td>
+    </tr>`).join('');
 
   return `<title>Audit ${esc(site)}</title>
 <style>
@@ -321,9 +335,12 @@ function renderHtml({ site, runFolder, pages, criteria, counts, systemic }) {
   .eyebrow { font-size: .72rem; text-transform: uppercase; letter-spacing: .09em; color: var(--accent-ink); font-weight: 600; margin-bottom: .9rem; }
   h1 { font-size: clamp(1.8rem, 4vw, 2.3rem); letter-spacing: -.01em; margin: 0 0 .6rem; }
   .subtitle { color: var(--ink-soft); font-size: 1.02rem; max-width: 62ch; margin: 0 0 1.5rem; }
-  .meta-row { display: flex; flex-wrap: wrap; gap: .5rem 1.6rem; font-size: .82rem; color: var(--ink-soft); }
-  .meta-row dt { font-weight: 600; color: var(--ink); display: inline; } .meta-row dd { display: inline; margin: 0 0 0 .35em; }
-  .meta-item { display: flex; gap: .3em; }
+  table.meta-table { width: 100%; border-collapse: collapse; font-size: .82rem; margin-top: 1.4rem; }
+  table.meta-table th, table.meta-table td { border: 1px solid var(--border); padding: .5rem .7rem; }
+  table.meta-table th { background: var(--surface-2); font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); text-align: left; }
+  table.meta-table td:first-child, table.meta-table th:first-child { text-align: center; width: 1%; white-space: nowrap; color: var(--ink-faint); }
+  table.meta-table .meta-page { font-family: ui-monospace, monospace; color: var(--ink); }
+  table.meta-table .meta-date, table.meta-table th:last-child { text-align: right; width: 1%; white-space: nowrap; color: var(--ink-faint); }
   .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 1.6rem 0 0; }
   .stat { background: var(--surface); padding: 1rem; }
   .stat .num { font-family: ui-serif, Georgia, serif; font-size: 1.6rem; font-weight: 600; font-variant-numeric: tabular-nums; display: block; }
@@ -394,7 +411,7 @@ function renderHtml({ site, runFolder, pages, criteria, counts, systemic }) {
     h1 { font-size: 1.5rem; }
     h2 { font-size: 1.05rem; }
     .stat .num { font-size: 1.3rem; }
-    .crit, table.page-summary, .stats, .callout { break-inside: avoid; }
+    .crit, table.page-summary, table.meta-table, .stats, .callout { break-inside: avoid; }
     a { color: inherit; text-decoration: none; }
   }
 </style>
@@ -404,7 +421,7 @@ function renderHtml({ site, runFolder, pages, criteria, counts, systemic }) {
     <div class="eyebrow">Report generato da checks/report.js</div>
     <h1>Audit ${esc(site)}</h1>
     <p class="subtitle">${criteria.length} criteri WCAG 2.1 A/AA su ${pages.length} pagine — controllo automatico (axe-core + euristiche) con fallback AI per i casi ambigui.</p>
-    <dl class="meta-row">${pagesMeta}</dl>
+    <table class="meta-table"><thead><tr><th>#</th><th>Pagina</th><th>Controllata il</th></tr></thead><tbody>${pagesMeta}</tbody></table>
     <div class="stats">
       <div class="stat fail"><span class="num">${counts.fail}</span><span class="label">falliti</span></div>
       <div class="stat pass"><span class="num">${counts.pass}</span><span class="label">superati</span></div>
