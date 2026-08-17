@@ -1,15 +1,15 @@
 # Criteri WCAG 2.1 A/AA — classificazione per automatizzabilità
 
-Elenco di riferimento dei 50 criteri A/AA, divisi in quattro fasce in base a quanto ha senso automatizzarli con l'approccio di questa suite (`checks/`): controllo deterministico (axe-core o calcolo diretto) + fallback AI opzionale solo sui casi ambigui. Aggiornato il 14/08/2026, dopo aver implementato tutti i 26 criteri delle fasce A e B — le fasce riflettono quello che abbiamo effettivamente imparato costruendoli, non solo una stima a tavolino.
+Elenco di riferimento dei 50 criteri A/AA, divisi in quattro fasce in base a quanto ha senso automatizzarli con l'approccio di questa suite (`checks/`): controllo deterministico (axe-core o calcolo diretto) + fallback AI opzionale solo sui casi ambigui. Aggiornato il 17/08/2026, dopo aver implementato tutti i 30 criteri delle fasce A e B — le fasce riflettono quello che abbiamo effettivamente imparato costruendoli, non solo una stima a tavolino. Quattro criteri (1.4.1, 1.4.13, 3.2.1, 3.2.2) erano stati inizialmente classificati in fascia C, poi rivalutati e implementati riusando l'infrastruttura già scritta (Tab-walk, interazione "innesca e osserva") con un giudizio AI più ampio del previsto.
 
 - **A — Automatico**: la parte deterministica (axe-core, o un calcolo che facciamo noi come per il contrasto) copre già la maggioranza dei casi reali; l'AI serve solo per un'eccezione minoritaria.
-- **B — L'AI ha senso**: axe-core copre poco o nulla, ma un'euristica gratuita isola bene i candidati sospetti e un giudizio AI (visivo o testuale) su quei candidati aggiunge valore reale — è il pattern che abbiamo usato per tutti e 12 i criteri implementati finora.
+- **B — L'AI ha senso**: axe-core copre poco o nulla, ma un'euristica gratuita isola bene i candidati sospetti e un giudizio AI (visivo o testuale) su quei candidati aggiunge valore reale — è il pattern usato per la maggioranza dei criteri implementati.
 - **C — Poco automatizzabile**: si potrebbe costruire qualcosa, ma il segnale automatico sarebbe debole, rumoroso, o richiederebbe un'interazione troppo specifica/costosa per il valore che dà. Verifica manuale resta la via principale.
 - **D — Non automatizzabile**: richiede un umano, contenuto reale (audio/video), o il passare del tempo reale. Nessuno script ha senso qui, nemmeno con AI.
 
 `✅` = già implementato in `checks/`.
 
-**Totali**: A = 5 (5 fatti) · B = 21 (21 fatti) · C = 15 · D = 9
+**Totali**: A = 5 (5 fatti) · B = 25 (25 fatti) · C = 11 · D = 9
 
 **Nota WCAG 2.2**: questo elenco copre solo i 50 criteri A/AA della WCAG 2.1. La WCAG 2.2 aggiunge 6 criteri A/AA rispetto alla 2.1 (più tre di livello AAA, fuori dall'ambito di questa suite, non elencati). Di questi 6, due sono già implementati:
 - **2.5.8 ✅ Dimensione target (minimo)** (`checks/2.5.8-dimensione-target.js`) — l'unica regola che axe-core aggiunge sotto il tag `wcag22aa`, controllo puramente geometrico senza AI.
@@ -38,7 +38,7 @@ Questi quattro condividono gli stessi limiti strutturali già visti in altri cri
 | 3.1.1 ✅ | Lingua della pagina | A | axe copre l'attributo mancante/non valido; l'euristica su parole comuni it/en risolve la maggior parte dei mismatch senza AI |
 | 4.1.1 ✅ | Analisi del contenuto (parsing) | A | axe copre bene id duplicati e markup non valido; puramente sintattico, l'AI non avrebbe nulla da giudicare |
 
-## B — L'AI ha senso (21)
+## B — L'AI ha senso (25)
 
 | SC | Criterio | Liv. | Nota |
 |---|---|---|---|
@@ -63,8 +63,12 @@ Questi quattro condividono gli stessi limiti strutturali già visti in altri cri
 | 3.3.3 ✅ | Suggerimento in caso di errore | AA | estensione naturale di 3.3.1: catturiamo già il testo d'errore, l'AI giudica se è anche un suggerimento utile o solo un'identificazione |
 | 4.1.2 ✅ | Nome, ruolo, valore | A | axe copre bene i casi standard; bottoni icona-solo/nomi generici (il problema più comune in pratica) servono l'AI |
 | 4.1.3 ✅ | Messaggi di stato | AA | verificabile solo entro i limiti di un'interazione sicura (blur su form, non un submit reale): se non reagisce, l'AI valuta solo la plausibilità strutturale della live region, non una conferma funzionale — verifica manuale resta consigliata |
+| 1.4.1 ✅ | Uso del colore | A | axe ha `link-in-text-block` per il caso più comune (link nel testo); per il resto confronto screenshot colore/scala di grigi + giudizio AI olistico sulla pagina |
+| 1.4.13 ✅ | Contenuto al passaggio del mouse o focus | AA | hover reale su candidati (title/aria-describedby/pattern tooltip), verifica empirica di dismissable (Escape) e persistent (attesa); l'AI giudica il complesso da screenshot + comportamento osservato |
+| 3.2.1 ✅ | Al focus | A | estensione del Tab-walk: URL/nuova finestra cambiati dal solo focus è un fallimento già certo; un cambiamento sostanziale del testo visibile senza navigazione è ambiguo (mega-menu legittimo vs cambio di contesto) e va all'AI |
+| 3.2.2 ✅ | In fase di input | A | stessa filosofia "innesca e osserva" di 3.3.1, applicata a select/checkbox/radio: cambio di valore che naviga è fallimento certo, cambiamento sostanziale del contenuto senza navigazione va all'AI |
 
-## C — Poco automatizzabile (15)
+## C — Poco automatizzabile (11)
 
 | SC | Criterio | Liv. | Nota |
 |---|---|---|---|
@@ -72,14 +76,10 @@ Questi quattro condividono gli stessi limiti strutturali già visti in altri cri
 | 1.3.2 | Sequenza significativa | A | l'AI potrebbe leggere il testo linearizzato, ma isolare "cosa linearizzare" e giudicare la coerenza è rumoroso |
 | 1.3.3 | Caratteristiche sensoriali | A | serve leggere tutto il testo della pagina cercando riferimenti solo a forma/posizione — alto rischio di falsi positivi |
 | 1.3.4 | Orientamento | AA | test di nicchia (rotazione viewport), raramente vale il costo di costruirlo |
-| 1.4.1 | Uso del colore | A | giudicare se un'informazione è veicolata *solo* dal colore richiede confronto screenshot con/senza colore — fattibile ma delicato |
-| 1.4.13 | Contenuto al passaggio del mouse o focus | AA | serve simulare hover reale e valutare dismissible/hoverable/persistente — interazione complessa per un segnale incerto |
 | 2.1.1 | Tastiera | A | il Tab-walk dà una base, ma "ogni funzionalità raggiungibile da tastiera" non è enumerabile automaticamente con confidenza |
 | 2.1.4 | Scorciatoie con caratteri singoli | A | richiede introspezione degli event listener keydown, non ispezionabile dall'esterno in modo affidabile |
 | 2.4.5 | Vie molteplici | AA | serve crawling multi-pagina + euristiche di navigazione (menu/ricerca/sitemap); fattibile ma complesso, priorità bassa |
 | 2.5.2 | Cancellazione del puntatore | A | testabile (mousedown + move fuori + mouseup) ma di nicchia |
-| 3.2.1 | Al focus | A | before/after DOM diff su ogni elemento è rumoroso: "cambio di contesto" è un concetto ampio |
-| 3.2.2 | In fase di input | A | stesso limite di 3.2.1, applicato agli input |
 | 3.2.3 | Navigazione coerente | AA | richiede crawling multi-pagina e confronto strutturale dei menu tra pagine |
 | 3.2.4 | Identificazione coerente | AA | confronto multi-pagina di componenti ricorrenti, stesso limite di 3.2.3 |
 | 3.3.4 | Prevenzione degli errori (legali, finanziari, dati) | AA | capire se una transazione è "critica" e se esiste conferma/reversibilità è troppo contestuale |
@@ -102,8 +102,8 @@ Questi quattro condividono gli stessi limiti strutturali già visti in altri cri
 
 ## Prossimi candidati
 
-Le fasce A e B sono complete (26/26 criteri WCAG 2.1 implementati al 14/08/2026), più 2 criteri WCAG 2.2 AA (2.5.8, 2.4.11 — quest'ultimo aggiunto il 17/08/2026 riusando il Tab-walk di 2.4.7/2.1.2/2.4.3). Guardando la fascia C, i candidati più ragionevoli da esplorare dopo — quelli con il segnale automatico meno rumoroso tra i "poco automatizzabili":
+Le fasce A e B sono complete (30/30 criteri WCAG 2.1 implementati al 17/08/2026 — 26 dalla classificazione originale più 1.4.1, 1.4.13, 3.2.1, 3.2.2 riclassificati da fascia C dopo una rilettura con l'AI come strumento), più 2 criteri WCAG 2.2 AA (2.5.8, 2.4.11). Guardando la fascia C rimasta (11 criteri), i candidati più ragionevoli da esplorare dopo:
 
-- **2.5.2** (cancellazione del puntatore) è interamente meccanico (mousedown + move fuori + mouseup) e non richiede alcun giudizio semantico: probabilmente il più vicino a una fascia B tra quelli della WCAG 2.1 rimasti.
-- **1.4.1** (uso del colore) è fattibile con un confronto screenshot a colori vs. desaturato, sulla falsariga di 1.4.4/1.4.12 (stessa tecnica di cattura, giudizio AI diverso).
-- **2.4.5** (vie molteplici) e **3.2.3/3.2.4** (coerenza tra pagine) richiederebbero di estendere l'orchestratore multi-pagina (`checks/run-site.js`) per confrontare risultati tra le pagine di uno stesso run, non solo aggregarli come fa oggi `checks/report.js` — cambio architetturale più corposo rispetto ai criteri per singola pagina fatti finora.
+- **2.5.2** (cancellazione del puntatore) è interamente meccanico (mousedown + move fuori + mouseup) e non richiede alcun giudizio semantico: probabilmente il più vicino a una fascia B tra quelli rimasti.
+- **2.5.7** (movimenti di trascinamento, WCAG 2.2 AA) potrebbe riusare la stessa filosofia "innesca e osserva" appena validata su 3.2.1/3.2.2: simulare un vero drag con `page.mouse` invece di ispezionare gli event listener.
+- **2.4.5** (vie molteplici), **3.2.3/3.2.4** (coerenza tra pagine) e **3.2.6** (WCAG 2.2, assistenza coerente) richiederebbero di estendere l'orchestratore multi-pagina (`checks/run-site.js`) per confrontare risultati tra le pagine di uno stesso run, non solo aggregarli come fa oggi `checks/report.js` — cambio architetturale più corposo rispetto ai criteri per singola pagina fatti finora.
