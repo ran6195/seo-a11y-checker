@@ -11,7 +11,17 @@ Elenco di riferimento dei 50 criteri A/AA, divisi in quattro fasce in base a qua
 
 **Totali**: A = 5 (5 fatti) · B = 21 (21 fatti) · C = 15 · D = 9
 
-**Nota WCAG 2.2**: questo elenco copre solo i 50 criteri A/AA della WCAG 2.1. La suite implementa in aggiunta un solo criterio della WCAG 2.2 AA, **2.5.8 Dimensione target (minimo)** (`checks/2.5.8-dimensione-target.js`), perché è l'unica regola che axe-core aggiunge sotto il tag `wcag22aa` — controllo puramente geometrico (dimensione + spaziatura), niente AI necessaria. Non è quindi una copertura sistematica della WCAG 2.2, solo ciò che axe-core stesso già calcola.
+**Nota WCAG 2.2**: questo elenco copre solo i 50 criteri A/AA della WCAG 2.1. La WCAG 2.2 aggiunge 6 criteri A/AA rispetto alla 2.1 (più tre di livello AAA, fuori dall'ambito di questa suite, non elencati). Di questi 6, **2.5.8 Dimensione target (minimo)** è già implementato (`checks/2.5.8-dimensione-target.js`) — è l'unica regola che axe-core aggiunge sotto il tag `wcag22aa`, controllo puramente geometrico senza AI. I rimanenti 5 non sono ancora coperti:
+
+| SC | Criterio | Liv. | Nota |
+|---|---|---|---|
+| 2.4.11 | Focus non oscurato (minimo) | AA | riuserebbe il Tab-walk già costruito per 2.4.7/2.1.2/2.4.3 con un controllo `document.elementFromPoint()` per rilevare se l'elemento a fuoco è coperto da un banner/header sticky — deterministico, candidato naturale per una prossima iterazione, non un vero limite tecnico |
+| 2.5.7 | Movimenti di trascinamento | AA | richiede riconoscere se un'interazione è implementata via drag (mousedown+move) e se esiste un'alternativa a singolo tocco — gli event listener non sono ispezionabili dall'esterno in modo affidabile, stesso limite di 2.1.4 |
+| 3.2.6 | Assistenza coerente | A | richiede confronto multi-pagina della posizione dei meccanismi di aiuto (contatti, chat, FAQ) — stesso limite di 3.2.3/3.2.4, serve crawling e confronto strutturale tra pagine |
+| 3.3.7 | Ridondanza delle informazioni | A | richiede seguire un intero flusso multi-step (es. un checkout) e confrontare semanticamente i campi richiesti in step diversi — troppo specifico per sito e per processo per un controllo generico |
+| 3.3.8 | Autenticazione accessibile (minimo) | AA | richiede accedere a un flusso di login reale e giudicare se il meccanismo (es. CAPTCHA, domande di sicurezza) ha un'alternativa senza funzione cognitiva — fuori portata di una scansione pubblica non autenticata |
+
+A differenza delle fasce C/D sopra, qui la difficoltà non è uniforme: 2.4.11 è un candidato realistico per una prossima iterazione (stessa infrastruttura già in uso), gli altri quattro hanno gli stessi limiti strutturali già visti in altri criteri WCAG 2.1.
 
 ---
 
@@ -91,6 +101,7 @@ Elenco di riferimento dei 50 criteri A/AA, divisi in quattro fasce in base a qua
 
 Le fasce A e B sono complete (26/26 criteri implementati al 14/08/2026). Guardando la fascia C, i candidati più ragionevoli da esplorare dopo — quelli con il segnale automatico meno rumoroso tra i "poco automatizzabili":
 
-- **2.5.2** (cancellazione del puntatore) è interamente meccanico (mousedown + move fuori + mouseup) e non richiede alcun giudizio semantico: probabilmente il più vicino a una fascia B tra quelli rimasti.
+- **2.4.11** (focus non oscurato, WCAG 2.2 AA) riusa il Tab-walk già costruito per 2.4.7/2.1.2/2.4.3 con un controllo `elementFromPoint()` — probabilmente il più veloce da aggiungere di tutti, essendo pura infrastruttura già esistente.
+- **2.5.2** (cancellazione del puntatore) è interamente meccanico (mousedown + move fuori + mouseup) e non richiede alcun giudizio semantico: probabilmente il più vicino a una fascia B tra quelli della WCAG 2.1 rimasti.
 - **1.4.1** (uso del colore) è fattibile con un confronto screenshot a colori vs. desaturato, sulla falsariga di 1.4.4/1.4.12 (stessa tecnica di cattura, giudizio AI diverso).
 - **2.4.5** (vie molteplici) e **3.2.3/3.2.4** (coerenza tra pagine) richiederebbero di estendere l'orchestratore multi-pagina (`checks/run-site.js`) per confrontare risultati tra le pagine di uno stesso run, non solo aggregarli come fa oggi `checks/report.js` — cambio architetturale più corposo rispetto ai criteri per singola pagina fatti finora.

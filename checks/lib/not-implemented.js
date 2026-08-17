@@ -35,4 +35,17 @@ const NON_AUTOMATIZZABILE = [
   { id: '2.5.4', name: 'Attivazione mediante movimento', level: 'A', reason: 'serve un device con sensori di movimento reali' }
 ];
 
-module.exports = { POCO_AUTOMATIZZABILE, NON_AUTOMATIZZABILE };
+// WCAG 2.2 aggiunge 6 criteri A/AA rispetto ai 50 della WCAG 2.1 (più tre di livello AAA,
+// fuori dall'ambito A/AA di questa suite, non elencati qui): 2.5.8 è già implementato
+// (checks/2.5.8-dimensione-target.js), questi sono i 5 rimasti fuori. A differenza delle
+// due liste sopra, qui il motivo non è sempre "difficile" — per 2.4.11 è onestamente solo
+// "non ancora costruito", non un limite tecnico reale.
+const WCAG22_NON_IMPLEMENTATI = [
+  { id: '2.4.11', name: 'Focus non oscurato (minimo)', level: 'AA', reason: 'riuserebbe il Tab-walk già costruito per 2.4.7/2.1.2/2.4.3 con un controllo document.elementFromPoint() per rilevare se l\'elemento a fuoco è coperto da un banner/header sticky — deterministico, candidato naturale per una prossima iterazione, non un vero limite tecnico' },
+  { id: '2.5.7', name: 'Movimenti di trascinamento', level: 'AA', reason: 'richiede riconoscere se un\'interazione è implementata via drag (mousedown+move) e se esiste un\'alternativa a singolo tocco — gli event listener non sono ispezionabili dall\'esterno in modo affidabile, stesso limite di 2.1.4' },
+  { id: '3.2.6', name: 'Assistenza coerente', level: 'A', reason: 'richiede confronto multi-pagina della posizione dei meccanismi di aiuto (contatti, chat, FAQ) — stesso limite di 3.2.3/3.2.4, serve crawling e confronto strutturale tra pagine' },
+  { id: '3.3.7', name: 'Ridondanza delle informazioni', level: 'A', reason: 'richiede seguire un intero flusso multi-step (es. un checkout) e confrontare semanticamente i campi richiesti in step diversi — troppo specifico per sito e per processo per un controllo generico' },
+  { id: '3.3.8', name: 'Autenticazione accessibile (minimo)', level: 'AA', reason: 'richiede accedere a un flusso di login reale e giudicare se il meccanismo (es. CAPTCHA, domande di sicurezza) ha un\'alternativa senza funzione cognitiva — fuori portata di una scansione pubblica non autenticata' }
+];
+
+module.exports = { POCO_AUTOMATIZZABILE, NON_AUTOMATIZZABILE, WCAG22_NON_IMPLEMENTATI };

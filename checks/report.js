@@ -2,7 +2,7 @@
 const path = require('path');
 const fs = require('fs');
 const { loadChecks } = require('./lib/runner');
-const { POCO_AUTOMATIZZABILE, NON_AUTOMATIZZABILE } = require('./lib/not-implemented');
+const { POCO_AUTOMATIZZABILE, NON_AUTOMATIZZABILE, WCAG22_NON_IMPLEMENTATI } = require('./lib/not-implemented');
 
 const STATUS_ICON = {
   pass: '✅',
@@ -281,13 +281,16 @@ function renderCoverage() {
       </table>
     </div>
     <details class="more-details">
-      <summary>${POCO_AUTOMATIZZABILE.length + NON_AUTOMATIZZABILE.length} criteri non ancora implementati</summary>
-      <h3>Poco automatizzabile (${POCO_AUTOMATIZZABILE.length})</h3>
+      <summary>${POCO_AUTOMATIZZABILE.length + NON_AUTOMATIZZABILE.length + WCAG22_NON_IMPLEMENTATI.length} criteri non ancora implementati</summary>
+      <h3>Poco automatizzabile — WCAG 2.1 (${POCO_AUTOMATIZZABILE.length})</h3>
       <p class="crit-note">Un controllo si potrebbe costruire, ma il segnale automatico sarebbe debole o rumoroso rispetto al valore che darebbe: per ora verifica manuale.</p>
       <ul class="issue-list not-impl-list">${notImplementedList(POCO_AUTOMATIZZABILE)}</ul>
-      <h3>Non automatizzabile (${NON_AUTOMATIZZABILE.length})</h3>
+      <h3>Non automatizzabile — WCAG 2.1 (${NON_AUTOMATIZZABILE.length})</h3>
       <p class="crit-note">Richiede un umano, contenuto reale (audio/video) o un dispositivo fisico (touch, sensori di movimento): nessuno script avrebbe senso qui, nemmeno con AI.</p>
       <ul class="issue-list not-impl-list">${notImplementedList(NON_AUTOMATIZZABILE)}</ul>
+      <h3>WCAG 2.2 AA — non ancora implementati (${WCAG22_NON_IMPLEMENTATI.length})</h3>
+      <p class="crit-note">I 6 criteri A/AA aggiunti dalla WCAG 2.2 rispetto alla 2.1 (i tre di livello AAA restano fuori dall'ambito di questa suite): 2.5.8 è già coperto, questi sono i rimanenti. La difficoltà varia da criterio a criterio — non è sempre "impossibile", a volte è solo non ancora costruito.</p>
+      <ul class="issue-list not-impl-list">${notImplementedList(WCAG22_NON_IMPLEMENTATI)}</ul>
     </details>
   </section>`;
 }
