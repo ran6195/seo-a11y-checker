@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
-    "axe-core": "^4.11.4",
+    "axe-core": "^4.13.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "lighthouse": "^10.4.0",

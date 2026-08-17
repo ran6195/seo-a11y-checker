@@ -116,33 +116,51 @@ async function main() {
 
   for (const url of options.urls) {
     console.log(`\n🌐 ${url}`);
-    const { axeResults } = await loadPage(page, url);
+    // Un errore su UNA pagina (tipicamente un timeout di navigazione: page.goto ha un
+    // limite di 30s di default) non deve far perdere il lavoro già fatto sulle pagine
+    // precedenti né saltare quelle successive: prima di questo try/catch, un'eccezione
+    // qui interrompeva l'intero processo (bug reale scoperto su un run di 14 pagine,
+    // fermatosi alla 12esima). La pagina fallita viene solo saltata e segnalata.
+    try {
+      const { axeResults } = await loadPage(page, url);
 
-    const results = await runChecksOnPage(
-      checks,
-      { page, axeResults, url, options },
-      (check, result) => {
-        console.log(`   ${check.id} ${check.name}... ${STATUS_ICON[result.status] || '?'} ${result.status}`);
-      }
-    );
+      const results = await runChecksOnPage(
+        checks,
+        { page, axeResults, url, options },
+        (check, result) => {
+          console.log(`   ${check.id} ${check.name}... ${STATUS_ICON[result.status] || '?'} ${result.status}`);
+        }
+      );
 
-    const outputPath = path.join(runDir, `${slugifyPage(url)}.json`);
-    fs.writeFileSync(outputPath, JSON.stringify({ url, timestamp: new Date().toISOString(), results }, null, 2));
-    console.log(`   💾 ${outputPath}`);
+      const outputPath = path.join(runDir, `${slugifyPage(url)}.json`);
+      fs.writeFileSync(outputPath, JSON.stringify({ url, timestamp: new Date().toISOString(), results }, null, 2));
+      console.log(`   💾 ${outputPath}`);
 
-    summary.push({ url, results });
+      summary.push({ url, results });
+    } catch (err) {
+      console.error(`   💥 Pagina saltata per errore: ${err.message}`);
+      summary.push({ url, results: null, error: err.message });
+    }
   }
 
   await browser.close();
 
   console.log('\n📋 Riepilogo run:');
-  summary.forEach(({ url, results }) => {
+  summary.forEach(({ url, results, error }) => {
+    if (!results) {
+      console.log(`   ${url}\n      💥 saltata: ${error}`);
+      return;
+    }
     const counts = {};
     results.forEach(r => { counts[r.status] = (counts[r.status] || 0) + 1; });
     const parts = Object.entries(counts).map(([status, n]) => `${STATUS_ICON[status] || '?'} ${n}`).join('  ');
     console.log(`   ${url}\n      ${parts}`);
   });
 
+  const skipped = summary.filter(s => !s.results).length;
+  if (skipped > 0) {
+    console.log(`\n⚠️  ${skipped}/${options.urls.length} pagine saltate per errore (vedi sopra).`);
+  }
   console.log(`\n💾 Tutti i report salvati in ${runDir}`);
 }
 

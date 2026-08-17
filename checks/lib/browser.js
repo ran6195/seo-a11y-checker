@@ -1,7 +1,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 
-const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21aa', 'best-practice'];
+const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa', 'best-practice'];
 
 // Bootstrap minimo e indipendente da a11y-checker.js: naviga, inietta axe-core
 // ed esegue un'unica scansione condivisa da tutti gli script di checks/.

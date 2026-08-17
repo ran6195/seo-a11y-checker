@@ -123,3 +123,6 @@ docs/
 
 # Output generato da checks/run.js (un JSON per pagina, per run)
 checks/output/
+
+# Liste di URL personali per test locali con checks/run-site.js --urls-file
+checks/url.txt
