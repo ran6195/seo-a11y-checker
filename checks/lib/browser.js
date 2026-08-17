@@ -69,7 +69,17 @@ async function launchBrowser({ headless = false } = {}) {
 // axe-core viene reiniettato ad ogni chiamata (via addScriptTag, non addInitScript):
 // corretto, serve fresco ad ogni navigazione, non deve persistere da una pagina all'altra.
 async function loadPage(page, url) {
-  await page.goto(url, { waitUntil: 'networkidle' });
+  // 'networkidle' (nessuna richiesta di rete per 500ms) sembra la scelta più prudente, ma
+  // su siti con attività di rete persistente in background (chat widget con polling,
+  // analytics, beacon periodici — molto comuni, es. su store Shopify) non si azzera MAI:
+  // verificato empiricamente su un sito reale, 'load' e 'domcontentloaded' completano in
+  // meno di un secondo mentre 'networkidle' va sempre in timeout (30s). È lo stesso
+  // anti-pattern documentato da Playwright stesso. 'load' (tutte le risorse iniziali —
+  // immagini, CSS, script — caricate) è l'equivalente più affidabile di "pagina pronta".
+  await page.goto(url, { waitUntil: 'load' });
+  // Margine per eventuale JS che si inizializza subito dopo 'load' (cookie banner, widget
+  // di terze parti): networkidle offriva questo indirettamente, qui va compensato.
+  await page.waitForTimeout(600);
   await autoScroll(page);
 
   const axeCoreScript = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
