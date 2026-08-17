@@ -12,6 +12,7 @@ module.exports = {
   description: 'Quando un contenuto richiede input dall\'utente, devono essere fornite etichette o istruzioni chiare.',
   remediation: 'Usa etichette descrittive (non "Campo 1"); per i campi obbligatori aggiungi un\'indicazione testuale accessibile, non solo un asterisco visivo (es. testo nascosto via CSS ma letto dallo screen reader, o aria-describedby verso un\'istruzione).',
   aiCapable: true,
+  wcagVersion: '2.1',
 
   async run(ctx) {
     const { page, axeResults, options } = ctx;

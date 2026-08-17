@@ -24,6 +24,7 @@ module.exports = {
   description: 'Nessuna perdita di contenuto o funzionalità deve verificarsi impostando: interlinea ad almeno 1,5 volte la dimensione del font, spazio dopo i paragrafi ad almeno 2 volte, spaziatura tra lettere ad almeno 0,12 volte, spaziatura tra parole ad almeno 0,16 volte.',
   remediation: 'Evita altezze fisse in px su contenitori di testo con overflow:hidden e imposta line-height in unità relative (non px fissi): il testo deve poter crescere in altezza/larghezza con la spaziatura personalizzata senza essere tagliato.',
   aiCapable: true,
+  wcagVersion: '2.1',
 
   async run(ctx) {
     const { page, options } = ctx;

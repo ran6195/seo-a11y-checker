@@ -8,6 +8,7 @@ module.exports = {
   description: 'Deve esistere un meccanismo per saltare blocchi di contenuto ripetuti (un link "salta al contenuto", o una struttura di landmark/intestazioni) e raggiungere velocemente il contenuto principale.',
   remediation: 'Aggiungi un link "Salta al contenuto principale" come primo elemento focusabile della pagina, che sposti davvero il focus (non solo lo scroll) su un contenitore raggiungibile via tabindex="-1".',
   aiCapable: false,
+  wcagVersion: '2.1',
 
   async run(ctx) {
     const { page, axeResults } = ctx;

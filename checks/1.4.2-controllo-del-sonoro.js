@@ -9,6 +9,7 @@ module.exports = {
   description: 'Se un audio parte automaticamente e dura più di 3 secondi, deve esistere un meccanismo per metterlo in pausa, fermarlo, o controllarne il volume indipendentemente dal volume di sistema.',
   remediation: 'Rimuovi l\'autoplay, oppure aggiungi controlli nativi (attributo controls) o un pulsante play/pausa/mute personalizzato ben visibile accanto al contenuto multimediale.',
   aiCapable: true,
+  wcagVersion: '2.1',
 
   async run(ctx) {
     const { page, options } = ctx;

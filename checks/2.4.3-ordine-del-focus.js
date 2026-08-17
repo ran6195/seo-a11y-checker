@@ -20,6 +20,7 @@ module.exports = {
   description: 'Se una pagina può essere navigata sequenzialmente e la sequenza di navigazione influisce sul significato o sull\'operatività, gli elementi devono ricevere il focus in un ordine che ne preservi il significato e l\'operatività.',
   remediation: 'Evita valori di tabindex positivi che alterano l\'ordine naturale; se un elemento va spostato visivamente (CSS order/position), verifica che la sua posizione nel DOM resti coerente con l\'ordine di lettura logico.',
   aiCapable: true,
+  wcagVersion: '2.1',
 
   // Riusa il Tab-walk reale già introdotto per 2.4.7/2.1.2. document.querySelectorAll
   // restituisce sempre gli elementi in ordine di documento: usarlo per assegnare un

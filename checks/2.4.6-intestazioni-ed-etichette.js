@@ -14,6 +14,7 @@ module.exports = {
   description: 'Le intestazioni e le etichette devono descrivere l\'argomento o lo scopo del contenuto che introducono.',
   remediation: 'Riscrivi l\'intestazione perché comunichi il contenuto della sezione, non solo un nome proprio o un\'etichetta generica (es. invece di "Titolo" o un nome e basta, aggiungi il ruolo/argomento: "Yuri Cestari — Chef Executive").',
   aiCapable: true,
+  wcagVersion: '2.1',
 
   async run(ctx) {
     const { page, axeResults, options } = ctx;

@@ -11,6 +11,8 @@ Elenco di riferimento dei 50 criteri A/AA, divisi in quattro fasce in base a qua
 
 **Totali**: A = 5 (5 fatti) · B = 21 (21 fatti) · C = 15 · D = 9
 
+**Nota WCAG 2.2**: questo elenco copre solo i 50 criteri A/AA della WCAG 2.1. La suite implementa in aggiunta un solo criterio della WCAG 2.2 AA, **2.5.8 Dimensione target (minimo)** (`checks/2.5.8-dimensione-target.js`), perché è l'unica regola che axe-core aggiunge sotto il tag `wcag22aa` — controllo puramente geometrico (dimensione + spaziatura), niente AI necessaria. Non è quindi una copertura sistematica della WCAG 2.2, solo ciò che axe-core stesso già calcola.
+
 ---
 
 ## A — Automatico (5)

@@ -81,7 +81,14 @@ async function loadPage(page, url) {
       return { error: 'axe-core non caricato', violations: [], incomplete: [], passes: [] };
     }
     try {
-      return await window.axe.run(document, { tags });
+      return await window.axe.run(document, {
+        tags,
+        // target-size (WCAG 2.5.8, Dimensione target minima) è disabilitata di default in
+        // axe-core anche quando il suo tag (wcag22aa) è incluso nella scansione: i tag da
+        // soli filtrano SOLO tra le regole già abilitate, non forzano l'esecuzione di una
+        // regola con enabled:false. Va riattivata esplicitamente qui.
+        rules: { 'target-size': { enabled: true } }
+      });
     } catch (error) {
       return { error: error.message, violations: [], incomplete: [], passes: [] };
     }

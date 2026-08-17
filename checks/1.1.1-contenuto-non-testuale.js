@@ -11,6 +11,7 @@ module.exports = {
   description: 'Ogni contenuto non testuale (immagini, controlli, elementi grafici) deve avere un\'alternativa testuale equivalente.',
   remediation: 'Scrivi un attributo alt che descriva il contenuto informativo dell\'immagine (non il nome del file, non frasi generiche come "immagine di"); per le immagini puramente decorative usa alt="".',
   aiCapable: true,
+  wcagVersion: '2.1',
 
   async run(ctx) {
     const { page, axeResults, options } = ctx;

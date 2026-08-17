@@ -30,6 +30,7 @@ module.exports = {
   description: 'Per i campi che raccolgono informazioni sull\'utente e il cui scopo può essere identificato nella tassonomia HTML autocomplete, lo scopo del campo deve essere programmaticamente determinabile.',
   remediation: 'Aggiungi l\'attributo autocomplete con il valore standard corrispondente allo scopo del campo (es. autocomplete="email", autocomplete="given-name", autocomplete="tel"): elenco completo nella sezione 7.5 delle WCAG.',
   aiCapable: true,
+  wcagVersion: '2.1',
 
   async run(ctx) {
     const { page, axeResults, options } = ctx;

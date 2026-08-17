@@ -21,6 +21,7 @@ module.exports = {
   description: 'Se il focus della tastiera può essere spostato su un componente usando solo la tastiera, deve poter essere spostato via da quel componente usando solo la tastiera; se serve più della semplice freccia/Tab, l\'utente deve esserne informato.',
   remediation: 'Verifica che nessun componente intercetti keydown impedendo a Tab/Shift+Tab di uscirne; se un widget (es. un modale) intrappola volutamente il focus mentre è aperto, assicurati che il tasto Escape lo chiuda e restituisca il focus alla pagina.',
   aiCapable: true,
+  wcagVersion: '2.1',
 
   // Riusa lo stesso Tab-walk reale (non focus programmatico) di checks/2.4.7-focus-visibile.js.
   // Test interamente funzionale, non un giudizio visivo: una vera trappola per la tastiera

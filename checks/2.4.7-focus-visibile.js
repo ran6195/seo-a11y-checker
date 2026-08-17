@@ -24,6 +24,7 @@ module.exports = {
   description: 'Ogni elemento che riceve il focus da tastiera deve mostrare un indicatore visivo chiaramente percepibile.',
   remediation: 'Aggiungi o rafforza un outline/box-shadow visibile su :focus-visible, con un contrasto di almeno 3:1 rispetto allo sfondo circostante; evita outline: none senza un sostituto altrettanto visibile.',
   aiCapable: true,
+  wcagVersion: '2.1',
 
   async run(ctx) {
     const { page, options } = ctx;

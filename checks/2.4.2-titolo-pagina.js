@@ -9,6 +9,7 @@ module.exports = {
   description: 'Le pagine devono avere un titolo che ne descriva l\'argomento o lo scopo.',
   remediation: 'Scrivi un <title> specifico per la pagina (non solo il nome del sito, non "Home" generico): includi l\'argomento principale della pagina.',
   aiCapable: true,
+  wcagVersion: '2.1',
 
   async run(ctx) {
     const { page, axeResults, options } = ctx;

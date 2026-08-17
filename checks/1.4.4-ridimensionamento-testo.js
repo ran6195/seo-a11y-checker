@@ -10,6 +10,7 @@ module.exports = {
   description: 'Il testo deve poter essere ingrandito fino al 200% senza perdita di contenuto o funzionalità, e senza richiedere lo scroll orizzontale per leggerlo (a parte contenuti che lo richiedono per natura).',
   remediation: 'Evita altezze/larghezze fisse in px su contenitori di testo con overflow:hidden; usa unità relative (em/rem/%) così il testo può crescere senza essere tagliato o sovrapporsi ad altri elementi.',
   aiCapable: true,
+  wcagVersion: '2.1',
 
   async run(ctx) {
     const { page, options } = ctx;

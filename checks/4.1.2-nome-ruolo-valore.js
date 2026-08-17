@@ -15,6 +15,7 @@ module.exports = {
   description: 'Per ogni componente dell\'interfaccia, nome e ruolo devono essere determinabili via software, e stati/valori devono poter essere impostati dall\'utente e comunicati alle tecnologie assistive.',
   remediation: 'Aggiungi un aria-label descrittivo ai bottoni/widget che mostrano solo un\'icona o un simbolo (es. aria-label="Chiudi" su un bottone "×"); evita nomi generici come "bottone" o "click".',
   aiCapable: true,
+  wcagVersion: '2.1',
 
   async run(ctx) {
     const { page, axeResults, options } = ctx;

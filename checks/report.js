@@ -247,9 +247,11 @@ function renderSystemic(systemic) {
 // di checks/CRITERI.md, qui in forma compatta per chi legge solo il report generato.
 function renderCoverage() {
   const implemented = loadChecks(null); // ordinati per id, uno per script in checks/
+  const implemented21 = implemented.filter(c => (c.wcagVersion || '2.1') === '2.1');
+  const implemented22 = implemented.filter(c => c.wcagVersion === '2.2');
   const implementedRows = implemented.map(c => `
     <tr>
-      <td class="mono">${esc(c.id)}</td>
+      <td class="mono">${esc(c.id)}${c.wcagVersion === '2.2' ? ' <span class="wcag-version-badge">2.2</span>' : ''}</td>
       <td>${esc(c.name)}</td>
       <td class="count-cell"><span class="lvl">${esc(c.level)}</span></td>
       <td class="count-cell"><span class="method-badge ${c.aiCapable ? 'ai' : 'auto'}">${c.aiCapable ? 'Automatico + AI' : 'Automatico'}</span></td>
@@ -260,12 +262,18 @@ function renderCoverage() {
   ).join('');
 
   const aiCount = implemented.filter(c => c.aiCapable).length;
-  const totalWcag = implemented.length + POCO_AUTOMATIZZABILE.length + NON_AUTOMATIZZABILE.length;
+  // Il totale "poco/non automatizzabile" (checks/lib/not-implemented.js) elenca solo i
+  // criteri WCAG 2.1 A/AA rimasti fuori: 50 in tutto, non un ipotetico "totale 2.1+2.2"
+  // che non corrisponde a nessuno standard reale. Il conteggio 2.2 resta sempre separato.
+  const totalWcag21 = implemented21.length + POCO_AUTOMATIZZABILE.length + NON_AUTOMATIZZABILE.length;
+  const wcag22Note = implemented22.length > 0
+    ? `, più ${implemented22.length} ${implemented22.length === 1 ? 'criterio' : 'criteri'} della WCAG 2.2 AA (${implemented22.map(c => c.id).join(', ')})`
+    : '';
 
   return `
   <section class="coverage">
-    <h2>Copertura dei criteri WCAG 2.1 A/AA</h2>
-    <p class="crit-desc">Questo audit copre ${implemented.length} dei ${totalWcag} criteri A/AA. Ognuno è sempre verificato in automatico (axe-core e/o euristiche); per ${aiCount} è disponibile anche un fallback AI opzionale (Claude) per i casi che il controllo automatico da solo non può giudicare con certezza — mai per confermare un esito già certo.</p>
+    <h2>Copertura dei criteri WCAG</h2>
+    <p class="crit-desc">Questo audit copre ${implemented21.length} dei ${totalWcag21} criteri WCAG 2.1 A/AA${wcag22Note}. Ognuno è sempre verificato in automatico (axe-core e/o euristiche); per ${aiCount} è disponibile anche un fallback AI opzionale (Claude) per i casi che il controllo automatico da solo non può giudicare con certezza — mai per confermare un esito già certo.</p>
     <div class="table-wrap">
       <table class="page-summary coverage-table">
         <thead><tr><th>SC</th><th>Criterio</th><th>Liv.</th><th>Metodo</th></tr></thead>
@@ -286,6 +294,15 @@ function renderCoverage() {
 
 function renderHtml({ site, runFolder, pages, criteria, counts, systemic }) {
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  // criteria arriva dai JSON di questo run (solo id/name/level/description/remediation,
+  // senza wcagVersion): per sapere quanti dei criteri EFFETTIVAMENTE in questo run sono
+  // WCAG 2.2 (oggi solo 2.5.8) serve incrociarli con i metadati statici degli script.
+  const versionById = new Map(loadChecks(null).map(c => [c.id, c.wcagVersion || '2.1']));
+  const count22InRun = criteria.filter(c => versionById.get(c.id) === '2.2').length;
+  const count21InRun = criteria.length - count22InRun;
+  const wcagSubtitle = count22InRun > 0
+    ? `${count21InRun} criteri WCAG 2.1 A/AA + ${count22InRun} WCAG 2.2 AA`
+    : `${criteria.length} criteri WCAG 2.1 A/AA`;
   // Tabella invece di un elenco a capo automatico: con più di 2-3 pagine il flex-wrap
   // finiva per accostare pagine diverse sulla stessa riga, illeggibile con URL lunghi.
   const pagesMeta = pages.map((p, i) => `
@@ -395,6 +412,7 @@ function renderHtml({ site, runFolder, pages, criteria, counts, systemic }) {
   table.coverage-table td:nth-child(2) { max-width: 32ch; }
   .not-impl-list li { line-height: 1.5; }
   .coverage h3 { font-size: .95rem; margin: 1.1rem 0 .3rem; }
+  .wcag-version-badge { font-size: .62rem; font-weight: 600; padding: .02rem .32rem; border-radius: 3px; background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn-border); vertical-align: middle; }
   footer { border-top: 1px solid var(--border); padding-top: 1.5rem; font-size: .82rem; color: var(--ink-soft); }
   footer p { margin: 0 0 .6rem; }
   @media (max-width: 560px) { .stats { grid-template-columns: repeat(2,1fr); } }
@@ -420,7 +438,7 @@ function renderHtml({ site, runFolder, pages, criteria, counts, systemic }) {
   <header class="masthead">
     <div class="eyebrow">Report generato da checks/report.js</div>
     <h1>Audit ${esc(site)}</h1>
-    <p class="subtitle">${criteria.length} criteri WCAG 2.1 A/AA su ${pages.length} pagine — controllo automatico (axe-core + euristiche) con fallback AI per i casi ambigui.</p>
+    <p class="subtitle">${wcagSubtitle} su ${pages.length} pagine — controllo automatico (axe-core + euristiche) con fallback AI per i casi ambigui.</p>
     <table class="meta-table"><thead><tr><th>#</th><th>Pagina</th><th>Controllata il</th></tr></thead><tbody>${pagesMeta}</tbody></table>
     <div class="stats">
       <div class="stat fail"><span class="num">${counts.fail}</span><span class="label">falliti</span></div>
