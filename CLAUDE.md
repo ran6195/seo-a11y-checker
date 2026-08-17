@@ -269,6 +269,9 @@ node checks/run.js https://example.com --criteria 1.1.1,2.4.7 --ai --limit 3
 # Multiple pages of the same site in one run (creates one shared output folder)
 node checks/run-site.js https://example.com https://example.com/contatti --ai
 
+# Same, but reading the URL list from a text file (one URL per line, # comments ignored)
+node checks/run-site.js --urls-file pagine.txt --ai
+
 # Aggregate a run's JSON files into an HTML report (accepts a run-folder path or a site slug — picks the latest run)
 node checks/report.js checks/output/example_com_20260101_1200
 node checks/report.js example_com
@@ -277,7 +280,7 @@ node checks/report.js example_com
 node html-to-pdf.js checks/output/example_com_20260101_1200/report.html
 ```
 
-Options common to `run.js`/`run-site.js`: `--criteria <list>` (default: all scripts found in `checks/`), `--ai` (requires `ANTHROPIC_API_KEY` in `.env` or `--ai-key`), `--limit <n>` (max AI-verified elements per criterion, default 5), `-h/--headless`. `run.js` also supports `-o/--output <file>` and `--no-save` (auto-save to `checks/output/` is the default otherwise); `run-site.js` has no `-o` — output is always the shared run folder, one JSON per page.
+Options common to `run.js`/`run-site.js`: `--criteria <list>` (default: all scripts found in `checks/`), `--ai` (requires `ANTHROPIC_API_KEY` in `.env` or `--ai-key`), `--limit <n>` (max AI-verified elements per criterion, default 5), `-h/--headless`. `run.js` also supports `-o/--output <file>` and `--no-save` (auto-save to `checks/output/` is the default otherwise); `run-site.js` has no `-o` — output is always the shared run folder, one JSON per page. `run-site.js` also accepts `--urls-file <file>` as an alternative (or addition) to passing URLs as positional arguments — a plain text file, one URL per line, blank lines and `#`-prefixed comments ignored.
 
 ### CLI Options (Common to both tools)
 - `-p, --pages <number>`: Max pages to check (default: 5)

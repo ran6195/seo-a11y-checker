@@ -18,6 +18,7 @@ const STATUS_ICON = {
 function printHelp() {
   console.log(`
 Uso: node checks/run-site.js <url1> <url2> ... [opzioni]
+     node checks/run-site.js --urls-file <file> [opzioni]
 
 Controlla più pagine dello stesso sito in un'unica invocazione: la cartella-run
 (<sito>_<timestamp>) viene calcolata una sola volta all'inizio, così tutte le
@@ -26,12 +27,33 @@ Riusa un solo browser per tutte le pagine (più veloce di lanciare checks/run.js
 una volta per pagina).
 
 Opzioni: le stesse di checks/run.js (--criteria, --ai, --ai-key, --limit, -h/--headless).
+  --urls-file <file>    Legge gli URL da un file di testo, uno per riga (in aggiunta a
+                         eventuali URL passati come argomenti). Righe vuote e righe che
+                         iniziano con # vengono ignorate.
 Non supporta -o/--output: l'output è sempre la cartella-run, una pagina per file JSON.
 
 Esempi:
   node checks/run-site.js https://example.com https://example.com/contatti
   node checks/run-site.js https://example.com https://example.com/chi-siamo --ai --limit 3
+  node checks/run-site.js --urls-file pagine.txt --ai
+
+Formato pagine.txt:
+  # commento, ignorato
+  https://example.com/
+  https://example.com/contatti/
 `);
+}
+
+function readUrlsFile(filePath) {
+  const resolved = path.resolve(filePath);
+  if (!fs.existsSync(resolved)) {
+    console.error(`❌ File non trovato: ${resolved}`);
+    process.exit(1);
+  }
+  return fs.readFileSync(resolved, 'utf8')
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line && !line.startsWith('#'));
 }
 
 function parseArgs(argv) {
@@ -51,6 +73,7 @@ function parseArgs(argv) {
     else if (arg === '--limit') options.limit = parseInt(argv[++i], 10) || options.limit;
     else if (arg === '--criteria') options.criteria = (argv[++i] || '').split(',').map(s => s.trim()).filter(Boolean);
     else if (arg === '--ai-key') options.apiKey = argv[++i];
+    else if (arg === '--urls-file') options.urls.push(...readUrlsFile(argv[++i] || ''));
     else if (arg === '--help') { printHelp(); process.exit(0); }
     else if (!arg.startsWith('-')) options.urls.push(arg);
   }
